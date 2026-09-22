@@ -20,12 +20,18 @@ Branch `26.3` of <https://github.com/Pandaismyname1/SEMI>, based on the released
 | NeoForge dedicated server | before F7: crashed at mod construction (`IntegratedServer` not present); after: reaches "Done", accepts the client |
 | Fabric dedicated server | before F7: crashed in the `main` entrypoint; after: loads EMI and stops at the Minecraft EULA gate (not accepted on the user's behalf, same as 26.1/26.2) |
 | Review round 1 | no severe defect; 2 moderate (key repeat, warning text), 3 minor, 5 informational; all actionable ones fixed |
-| Review round 2 | see below |
+| Review rounds 2–4 | round 2: 1 severe (sync listener) + 2 moderate, fixed; round 3: 2 moderate + 8 minor, fixed; round 4: see below |
 
 ## Delta review
 **Round 1** (port commits against the 26.3 bytecode, NeoForge 26.3.0.8-beta sources, Fabric API 0.161.0+26.3, JEI 31.4): confirmed every mixin/accessor/AW/AT target, the input constant mapping, the tooltip flag, the screenshot recorder against vanilla's own screenshot path, the block transformer plumbing, brewing/fuel/composting components, `Prediction.SERVER_ONLY`, `DataComponentPatch.split()`, the Fabric `MappedRegistry` recipe map, JEMI against JEI 31.4, ModMenu 21 and the tag names (236 item + 10 fluid tags, none unnamed). It recommended the server→client value sync that became F9 over reading the vanilla data files on the client (which would show wrong numbers on servers with datapacks and nothing for mods).
 
-**Round 2** (fix commits): see the section appended below once the round completed.
+**Round 2** (fix commits `43e158e5`..`f4651e15`): no severe port defect, but one severe defect in the new sync: the datapack-change listener reused `EmiReloadManager.reloadRecipes()`, the "recipes half arrived" handshake signal, which left the two-half mask dirty for the rest of the session; plus the block-transform fallback loop could publish a neighbour's blocks, the server discarded the names of unhandled provider types, no clearing on a configuration-phase disconnect, no cycle guard, and wording. All fixed (`113755b4`..`5c255efe`).
+
+**Round 3** (those fixes): the handshake mask is confirmed untouched by the data-change path; two moderate issues remained (a standalone reload could start with no world after a mid-reload disconnect or a reconfiguration because `status` leaked; NeoForge's values-first ordering still cost two reloads when values changed) and eight minor ones (a lost-reload race on `thread`, a stale `EmiRecipes.Worker` clearing a newer worker, per-join recomputation and logging, no total evaluation budget, task completion not in `finally`, zero counted as unresolved, an empty map from a SEMI server blamed on "no SEMI", `any_of` predicates). All fixed (`023cadfb`..`2f500073`): the listener now records a "debt" that the next handshake reload pays, with a 40-tick grace after which one standalone reload runs only if a world is present.
+
+**Round 4** (the round-3 fixes): see below.
+
+**Re-tests after the last fixes, both loaders:** singleplayer join = exactly one reload (the configuration-phase values arm the debt, the handshake pays it); `/reload` twice = exactly one reload each, nothing trailing; NeoForge client on the NeoForge dedicated server = one reload, Fuel tab correct from the server's cached values; NeoForge server to "Done", Fabric server to the EULA gate.
 
 ## Please double-check
 - F9 adds a configuration-phase payload on EMI's channel; it is guarded by `canSend`/`hasChannel`, so vanilla clients and servers without SEMI are unaffected, and it was tested only NeoForge↔NeoForge (the Fabric server is EULA-gated in this environment).
