@@ -20,6 +20,7 @@ description = '''
 Seasonal EMI, an unofficial continuation of EMI: a featureful and accessible item and recipe viewer
 '''
 iconFile = "icon.png"
+bannerFile = "icon.png"
 
 [[dependencies.emi]]
 modId="neoforge"
