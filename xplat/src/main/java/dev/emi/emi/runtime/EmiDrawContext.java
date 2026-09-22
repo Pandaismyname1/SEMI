@@ -25,6 +25,8 @@ public class EmiDrawContext {
 	 */
 	private static int color = -1;
 	private static final List<Runnable> DEFERRED_TOOLTIPS = new ArrayList<>();
+	// How many times a flush will re-drain the deferred list before giving up on this frame
+	private static final int MAX_TOOLTIP_PASSES = 8;
 	/**
 	 * Identity of the last raw context seen by {@link #wrap}. Vanilla allocates a fresh
 	 * {@link GuiGraphicsExtractor} every frame, so a change here means a new frame (or a
@@ -192,8 +194,10 @@ public class EmiDrawContext {
 
 	public void flushDeferredTooltips() {
 		// A deferred runnable may defer another tooltip of its own, so keep draining until the
-		// list stays empty instead of stranding whatever the first pass added
-		while (!DEFERRED_TOOLTIPS.isEmpty()) {
+		// list stays empty instead of stranding whatever the first pass added. The pass count is
+		// bounded so that a runnable that always re-defers cannot hang the render thread; anything
+		// still queued is left for the next frame.
+		for (int pass = 0; pass < MAX_TOOLTIP_PASSES && !DEFERRED_TOOLTIPS.isEmpty(); pass++) {
 			context.nextStratum();
 			List<Runnable> tooltips = List.copyOf(DEFERRED_TOOLTIPS);
 			DEFERRED_TOOLTIPS.clear();

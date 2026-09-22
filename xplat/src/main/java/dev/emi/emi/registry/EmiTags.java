@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.metadata.animation.AnimationMetadataSection;
+import net.minecraft.client.resources.metadata.animation.FrameSize;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.Identifier;
@@ -45,11 +46,10 @@ public class EmiTags {
 	public static final InheritanceMap<EmiRegistryAdapter<?>> ADAPTERS_BY_CLASS = new InheritanceMap<>(Maps.newHashMap());
 	public static final Map<Registry<?>, EmiRegistryAdapter<?>> ADAPTERS_BY_REGISTRY = Maps.newHashMap();
 	public static final Identifier HIDDEN_FROM_RECIPE_VIEWERS = EmiPort.id("c", "hidden_from_recipe_viewers");
-	// Rebuilt on the reload worker and read by the render thread, so these three are published as
-	// immutable snapshots rather than mutated in place
-	private static volatile Map<TagKey<?>, Identifier> MODELED_TAGS = Map.of();
-	private static volatile Map<Identifier, List<TagIconLayer>> TAG_ICONS = Map.of();
-	private static volatile Map<Identifier, Item> TAG_ICON_ITEMS = Map.of();
+	private static final Snapshot EMPTY_SNAPSHOT = new Snapshot(Map.of(), Map.of(), Map.of());
+	// Rebuilt on the reload worker and read by the render thread, so the three lookups are
+	// published together as one immutable snapshot rather than mutated in place
+	private static volatile Snapshot SNAPSHOT = EMPTY_SNAPSHOT;
 	private static final Map<Set<?>, List<EmiTagKey<?>>> CACHED_TAGS = Maps.newHashMap();
 	private static final Map<EmiTagKey<?>, List<?>> TAG_VALUES = Maps.newHashMap();
 	private static final Map<Identifier, List<EmiTagKey<?>>> SORTED_TAGS = Maps.newHashMap();
@@ -162,10 +162,21 @@ public class EmiTags {
 	/**
 	 * A single texture of a tag icon, drawn as the [x, x + width) horizontal slice of the 16x16
 	 * slot. The slice of the source texture is scaled to its real size, and only the first
-	 * animation frame is used, so {@code frameHeight} may be shorter than {@code textureHeight}.
+	 * animation frame is used, so {@code frameWidth} and {@code frameHeight} may be smaller than
+	 * {@code textureWidth} and {@code textureHeight}.
 	 * A plain single texture icon is one layer covering the full width.
 	 */
-	public record TagIconLayer(Identifier texture, int x, int width, int textureWidth, int textureHeight, int frameHeight) {
+	public record TagIconLayer(Identifier texture, int x, int width, int textureWidth, int textureHeight,
+			int frameWidth, int frameHeight) {
+	}
+
+	/**
+	 * Everything {@link #registerTagModels} derives from the tag models, in one immutable value.
+	 * The three lookups are always replaced together, so a reader can never pair one reload's
+	 * modeled tags with another reload's icons.
+	 */
+	private record Snapshot(Map<TagKey<?>, Identifier> modeled, Map<Identifier, List<TagIconLayer>> icons,
+			Map<Identifier, Item> items) {
 	}
 
 	/**
@@ -173,7 +184,7 @@ public class EmiTags {
 	 * on reload.
 	 */
 	public static Map<TagKey<?>, Identifier> getModeledTags() {
-		return MODELED_TAGS;
+		return SNAPSHOT.modeled();
 	}
 
 	/**
@@ -182,7 +193,7 @@ public class EmiTags {
 	 * the tag's first stack.
 	 */
 	public static List<TagIconLayer> getTagIcon(Identifier modelId) {
-		return modelId == null ? null : TAG_ICONS.get(modelId);
+		return modelId == null ? null : SNAPSHOT.icons().get(modelId);
 	}
 
 	/**
@@ -191,7 +202,7 @@ public class EmiTags {
 	 * block models like {@code #minecraft:logs} looking like blocks rather than a flat face.
 	 */
 	public static Item getTagIconItem(Identifier modelId) {
-		return modelId == null ? null : TAG_ICON_ITEMS.get(modelId);
+		return modelId == null ? null : SNAPSHOT.items().get(modelId);
 	}
 
 	public static void registerTagModels(ResourceManager manager, Consumer<Identifier> consumer) {
@@ -367,14 +378,12 @@ public class EmiTags {
 	}
 
 	/**
-	 * Swaps in the new snapshots. Each field is written once, so the render thread only ever sees
-	 * a complete map, never one that is being filled in.
+	 * Swaps in the new snapshot. One volatile write of an immutable record, so the render thread
+	 * only ever sees a complete and self consistent set of maps.
 	 */
 	private static void publish(Map<TagKey<?>, Identifier> modeled, Map<Identifier, List<TagIconLayer>> icons,
 			Map<Identifier, Item> iconItems) {
-		MODELED_TAGS = Map.copyOf(modeled);
-		TAG_ICONS = Map.copyOf(icons);
-		TAG_ICON_ITEMS = Map.copyOf(iconItems);
+		SNAPSHOT = new Snapshot(Map.copyOf(modeled), Map.copyOf(icons), Map.copyOf(iconItems));
 	}
 
 	private static final int MODEL_PARENT_LIMIT = 16;
@@ -535,19 +544,28 @@ public class EmiTags {
 		if (size == null) {
 			return null;
 		}
+		int frameWidth = size[0];
 		int frameHeight = size[1];
 		try {
 			Optional<AnimationMetadataSection> animation = resource.get().metadata().getSection(AnimationMetadataSection.TYPE);
 			if (animation.isPresent()) {
-				frameHeight = animation.get().calculateFrameSize(size[0], size[1]).height();
+				// An animation may be strips of frames across as well as down, so the frame's own
+				// width is what the icon is sliced out of, not the texture's
+				FrameSize frame = animation.get().calculateFrameSize(size[0], size[1]);
+				frameWidth = frame.width();
+				frameHeight = frame.height();
 			}
 		} catch (Exception e) {
-			return null;
+			// A malformed .mcmeta only means the frame layout is unknown; drawing the whole
+			// texture is a better icon than dropping the tag's icon entirely
+			frameWidth = size[0];
+			frameHeight = size[1];
 		}
-		if (frameHeight <= 0 || frameHeight > size[1]) {
-			return null;
+		if (frameWidth <= 0 || frameWidth > size[0] || frameHeight <= 0 || frameHeight > size[1]) {
+			frameWidth = size[0];
+			frameHeight = size[1];
 		}
-		return new TagIconLayer(path, x, width, size[0], size[1], frameHeight);
+		return new TagIconLayer(path, x, width, size[0], size[1], frameWidth, frameHeight);
 	}
 
 	/**
@@ -561,6 +579,11 @@ public class EmiTags {
 			}
 			byte[] header = stream.readNBytes(24);
 			if (header.length < 24 || (header[0] & 0xFF) != 0x89 || header[1] != 'P' || header[2] != 'N' || header[3] != 'G') {
+				return null;
+			}
+			// The dimensions below are read out of the payload of the first chunk, which the PNG
+			// spec requires to be IHDR; anything else is not a file this can measure
+			if (header[12] != 'I' || header[13] != 'H' || header[14] != 'D' || header[15] != 'R') {
 				return null;
 			}
 			int width = readInt(header, 16);

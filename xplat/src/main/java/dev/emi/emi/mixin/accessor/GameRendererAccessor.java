@@ -22,4 +22,14 @@ public interface GameRendererAccessor {
 	 */
 	@Accessor("fogRenderer")
 	FogRenderer emi$getFogRenderer();
+
+	/**
+	 * GUI draws are lit by the flat UI lightmap instead of the world's.
+	 * {@code GameRenderer.render} raises this around its own GUI pass and lowers it again
+	 * afterwards, so a standalone screenshot render has to do the same or the items in the shot are
+	 * lit by wherever the player happens to be standing. The field is not final, so no
+	 * {@code @Mutable} is needed.
+	 */
+	@Accessor("useUiLightmap")
+	void emi$setUseUiLightmap(boolean useUiLightmap);
 }
