@@ -19,7 +19,7 @@ This port was made with AI. AI (Claude, by Anthropic) was used to bring EMI back
 ## Downloads
 
 - Modrinth: <https://modrinth.com/mod/semi> (pending)
-- CurseForge: <https://www.curseforge.com/minecraft/mc-mods/semi> (pending)
+- CurseForge: <https://www.curseforge.com/minecraft/mc-mods/semi-seasonal-emi> (pending moderator approval)
 - GitHub releases: <https://github.com/Pandaismyname1/SEMI/releases>
 
 ## Supported versions
