@@ -1,9 +1,10 @@
 package dev.emi.emi.mixin.accessor;
 
+import com.mojang.blaze3d.pipeline.RenderTarget;
 import net.minecraft.client.gui.render.GuiRenderer;
 import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.client.renderer.fog.FogRenderer;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
 @Mixin(GameRenderer.class)
@@ -18,10 +19,14 @@ public interface GameRendererAccessor {
 	GuiRenderer emi$getGuiRenderer();
 
 	/**
-	 * Only needed for the empty {@code FogMode.NONE} buffer that GUI draws are given.
+	 * {@code GuiRenderer} always draws into whatever {@code GameRenderer.mainRenderTarget}
+	 * returns, so recipe screenshots point it at their own target for the duration of one render
+	 * and put the real one back afterwards. The field moved here from {@code Minecraft} in 26.2
+	 * and is final, hence {@code @Mutable}.
 	 */
-	@Accessor("fogRenderer")
-	FogRenderer emi$getFogRenderer();
+	@Accessor("mainRenderTarget")
+	@Mutable
+	void emi$setMainRenderTarget(RenderTarget target);
 
 	/**
 	 * GUI draws are lit by the flat UI lightmap instead of the world's.

@@ -15,7 +15,6 @@
     "accessor.HandledScreenAccessor",
     "accessor.HoeItemAccessor",
     "accessor.ItemStackRenderStateAccessor",
-    "accessor.MinecraftAccessor",
     "accessor.OrderedTextTooltipComponentAccessor",
     "accessor.ShovelItemAccessor",
     "accessor.SmithingTransformRecipeAccessor",
