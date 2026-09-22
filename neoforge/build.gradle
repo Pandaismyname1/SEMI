@@ -46,16 +46,6 @@ repositories {
 			includeGroupAndSubgroups "cpw.mods"
 		}
 	}
-	exclusiveContent {
-		forRepository {
-			maven {
-				url "https://cursemaven.com"
-			}
-		}
-		filter {
-			includeGroup "curse.maven"
-		}
-	}
 }
 
 configurations {
@@ -73,35 +63,6 @@ dependencies {
 
 	common(project(path: ":xplat")) { transitive = false }
 	shadowCommon(project(path: ":xplat", configuration: "transformProductionNeoForge")) { transitive = false }
-
-	localRuntime "curse.maven:jei-238222:8419117"
-	localRuntime "curse.maven:refined-storage-243076:8211383"
-	localRuntime "curse.maven:applied-energistics-2-223794:8257570"
-	localRuntime "curse.maven:guideme-1173950:8204880"
-	localRuntime "curse.maven:cooking-for-blockheads-231484:8404511"
-	localRuntime "curse.maven:balm-531761:8424855"
-	localRuntime "curse.maven:energized-power-782147:8400272"
-	localRuntime "curse.maven:just-dire-things-1002348:8251776"
-	localRuntime "curse.maven:inventory-essentials-368825:8362291"
-	localRuntime "curse.maven:jade-324717:8326300"
-	localRuntime "curse.maven:logistics-network-1448257:8419032"
-	localRuntime "curse.maven:pipez-443900:8351634"
-	localRuntime "curse.maven:powah-rearchitected-633483:8025339"
-	localRuntime "curse.maven:cloth-config-348521:7817583"
-	localRuntime "curse.maven:refined-storage-jei-integration-1230497:8175469"
-	localRuntime "curse.maven:sophisticated-backpacks-422301:8377448"
-	localRuntime "curse.maven:sophisticated-core-618298:8412279"
-	localRuntime "curse.maven:yeetusexperimentus-635427:7830957"
-	localRuntime "curse.maven:productivebees-377897:8303935"
-	localRuntime "curse.maven:cucumber-272335:8433624"
-	localRuntime "curse.maven:mystical-agriculture-246640:8344253"
-	localRuntime "curse.maven:mystical-automation-1265613:8205860"
-	localRuntime "curse.maven:patchouli-306770:8404543"
-	localRuntime "curse.maven:placebo-283644:8249025"
-	localRuntime "curse.maven:apothic-attributes-898963:8182592"
-	localRuntime "curse.maven:apothic-enchanting-1063926:8171092"
-	localRuntime "curse.maven:apothic-spawners-986583:8171043"
-	localRuntime "curse.maven:apotheosis-313970:8249091"
 }
 
 processResources {

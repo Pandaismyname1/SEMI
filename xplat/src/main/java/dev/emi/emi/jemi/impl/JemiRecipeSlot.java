@@ -9,6 +9,7 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Unmodifiable;
 
 import dev.emi.emi.api.stack.EmiIngredient;
+import dev.emi.emi.api.stack.TagEmiIngredient;
 import dev.emi.emi.api.stack.EmiStack;
 import dev.emi.emi.api.widget.Bounds;
 import dev.emi.emi.api.widget.SlotWidget;
@@ -25,6 +26,7 @@ import mezz.jei.api.recipe.RecipeIngredientRole;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
+import net.minecraft.tags.TagKey;
 
 @SuppressWarnings({"unchecked", "removal"})
 public class JemiRecipeSlot implements IRecipeSlotDrawable {
@@ -102,6 +104,19 @@ public class JemiRecipeSlot implements IRecipeSlotDrawable {
 	@Override
 	public Optional<ITypedIngredient<?>> getDisplayedIngredient() {
 		return JemiUtil.getTyped(stack.getEmiStacks().get(0));
+	}
+
+	@Override
+	public Stream<ITypedIngredient<?>> getDisplayedIngredients() {
+		return getAllIngredients();
+	}
+
+	@Override
+	public Optional<TagKey<?>> getTagKey() {
+		if (stack instanceof TagEmiIngredient tag) {
+			return Optional.of(tag.key);
+		}
+		return Optional.empty();
 	}
 
 	@Override

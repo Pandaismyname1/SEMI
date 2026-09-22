@@ -11,6 +11,7 @@ import mezz.jei.api.gui.ingredient.IRecipeSlotDrawablesView;
 import mezz.jei.api.gui.inputs.IJeiGuiEventListener;
 import mezz.jei.api.gui.inputs.IJeiInputHandler;
 import mezz.jei.api.gui.placement.IPlaceable;
+import mezz.jei.api.gui.widgets.IDrawableWidget;
 import mezz.jei.api.gui.widgets.IRecipeExtrasBuilder;
 import mezz.jei.api.gui.widgets.IRecipeWidget;
 import mezz.jei.api.gui.widgets.IScrollBoxWidget;
@@ -19,6 +20,7 @@ import mezz.jei.api.gui.widgets.ISlottedRecipeWidget;
 import mezz.jei.api.gui.widgets.ITextWidget;
 import net.minecraft.network.chat.FormattedText;
 
+@SuppressWarnings("removal")
 public class JemiRecipeExtrasBuilder implements IRecipeExtrasBuilder {
 	public IRecipeSlotDrawablesView slots;
 	public List<IJeiInputHandler> inputHandlers = Lists.newArrayList();
@@ -42,11 +44,24 @@ public class JemiRecipeExtrasBuilder implements IRecipeExtrasBuilder {
 
 	@Override
 	public IPlaceable<?> addDrawable(IDrawable drawable) {
+		return addDrawableWidget(drawable);
+	}
+
+	@Override
+	public IDrawableWidget addDrawableWidget(IDrawable drawable) {
 		return addEmi(new JemiWidgetBuilder(drawable.getWidth(), drawable.getHeight(), (self, holder) -> {
 			holder.addDrawable(self.x, self.y, drawable.getWidth(), drawable.getHeight(), (raw, mouseX, mouseY, delta) -> {
 				drawable.draw(raw);
 			});
 		}));
+	}
+
+	@Override
+	public IDrawableWidget addTooltipArea(int xPos, int yPos, int width, int height) {
+		// Tooltip content is unimplemented, but the area still has to be a placeable widget
+		IDrawableWidget widget = addEmi(new JemiWidgetBuilder(width, height, (self, holder) -> {
+		}));
+		return widget.setPosition(xPos, yPos);
 	}
 
 	@Override
@@ -89,21 +104,41 @@ public class JemiRecipeExtrasBuilder implements IRecipeExtrasBuilder {
 
 	@Override
 	public IPlaceable<?> addRecipeArrow() {
+		return addRecipeArrowWidget();
+	}
+
+	@Override
+	public IDrawableWidget addRecipeArrowWidget() {
 		return addEmiTexture(EmiTexture.EMPTY_ARROW);
 	}
 
 	@Override
 	public IPlaceable<?> addRecipePlusSign() {
+		return addRecipePlusSignWidget();
+	}
+
+	@Override
+	public IDrawableWidget addRecipePlusSignWidget() {
 		return addEmiTexture(EmiTexture.PLUS);
 	}
 
 	@Override
 	public IPlaceable<?> addAnimatedRecipeArrow(int ticksPerCycle) {
+		return addAnimatedRecipeArrowWidget(ticksPerCycle);
+	}
+
+	@Override
+	public IDrawableWidget addAnimatedRecipeArrowWidget(int ticksPerCycle) {
 		return addAnimatedEmiTexture(EmiTexture.EMPTY_ARROW, EmiTexture.FULL_ARROW, ticksPerCycle * 1000 / 20, true, false, false);
 	}
 
 	@Override
 	public IPlaceable<?> addAnimatedRecipeFlame(int cookTime) {
+		return addAnimatedRecipeFlameWidget(cookTime);
+	}
+
+	@Override
+	public IDrawableWidget addAnimatedRecipeFlameWidget(int cookTime) {
 		return addAnimatedEmiTexture(EmiTexture.EMPTY_FLAME, EmiTexture.FULL_FLAME, cookTime * 1000 / 20, false, true, true);
 	}
 
@@ -112,20 +147,20 @@ public class JemiRecipeExtrasBuilder implements IRecipeExtrasBuilder {
 		return new JemiTextWidget(text, maxWidth, maxHeight);
 	}
 
-	private IPlaceable<?> addEmiTexture(EmiTexture texture) {
+	private IDrawableWidget addEmiTexture(EmiTexture texture) {
 		return addEmi(new JemiWidgetBuilder(texture.width, texture.height, (self, holder) -> {
 			holder.addTexture(texture, self.x, self.y);
 		}));
 	}
 
-	private IPlaceable<?> addAnimatedEmiTexture(EmiTexture texture, EmiTexture animated, int time, boolean horizontal, boolean endToStart, boolean fullToEmpty) {
+	private IDrawableWidget addAnimatedEmiTexture(EmiTexture texture, EmiTexture animated, int time, boolean horizontal, boolean endToStart, boolean fullToEmpty) {
 		return addEmi(new JemiWidgetBuilder(texture.width, texture.height, (self, holder) -> {
 			holder.addTexture(texture, self.x, self.y);
 			holder.addAnimatedTexture(animated, self.x, self.y, time, horizontal, endToStart, fullToEmpty);
 		}));
 	}
 
-	private IPlaceable<?> addEmi(JemiWidgetBuilder builder) {
+	private IDrawableWidget addEmi(JemiWidgetBuilder builder) {
 		widgets.add(builder);
 		return builder;
 	}
