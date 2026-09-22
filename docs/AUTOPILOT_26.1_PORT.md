@@ -1,0 +1,52 @@
+# Autopilot contract: port EMI to Minecraft 26.1 (Fabric + NeoForge)
+
+Started 2026-09-22 (unattended run). Branch: `26.1` (from upstream `1.21` @ 81f6453c).
+Decision log: `docs/AUTOPILOT_26.1_DECISIONS.md`.
+
+## Target
+- Minecraft **26.1.2** (last 26.1 hotfix; the 26.1 line requires Java 25, is unobfuscated, Yarn is discontinued, so everything moves to Mojang mappings).
+- Loaders: **Fabric** (loader 0.19.x, Fabric API 0.15x+26.1.2) and **NeoForge** (26.1.2.x).
+- Build: Gradle 9.x, JDK 25, `dev.architectury.loom-no-remap` (classic Architectury Loom cannot do 26.1+).
+
+## Approach (see decision D1)
+Merge the MIT-licensed community port `link-fgfgui/emi@26.1` (remote `linkfgfgui`) into upstream HEAD, then re-port the upstream commits the fork lacks, then clean up, bump toolchain, verify, review.
+
+## Checklist (definition of done)
+### A. Branch + merge
+- [x] A1. Branch `26.1` created from `origin/1.21` (81f6453c).
+- [ ] A2. `linkfgfgui/26.1` (63e8aef1) merged; all 34 UU + 5 AA conflicts resolved (fork side wins for mojmap; upstream semantics re-applied).
+- [ ] A3. Upstream delta re-ported on mojmap: 81f6453c "Introduce some abstractions" (ProxyRecipeManager, EmiDrawContext.translate, EmiPort.playClickSound), 4c22e3b0 tag-query registries, 5b49fb13 display-all-recipes keybind, 92038d8e displayRecipesForWorkstation, 94c6ad88/1c553693/c0b57231 lang fixes, ec96b21a README maven URL.
+- [ ] A4. `EmiPort.getId/getRecipe` + `EmiRecipes.recipeIds` removed in favour of `ProxyRecipeManager` (no duplicate id maps left).
+
+### B. Repo hygiene / toolchain
+- [ ] B1. Version scheme restored to upstream convention (`-SNAPSHOT` unless `RELEASE`), `mod_version` unchanged (1.1.24).
+- [ ] B2. Fork-specific dev `localRuntime` mod lists (cursemaven/modrinth test mods) removed from fabric/neoforge build files.
+- [ ] B3. GitHub workflows: upstream `build.yml`/`release.yml` kept, JDK 25 + temurin; the fork's auto-release-to-their-CurseForge workflow is NOT carried over.
+- [ ] B4. Dependencies bumped to latest 26.1.2-compatible (NeoForge 26.1.2.x latest, Fabric API latest +26.1.2, Fabric Loader latest stable, JEI latest that compiles), verified by build.
+- [ ] B5. `.gitignore`, README developer section updated for 26.1 (no remap: `compileOnly`/`localRuntime`).
+- [ ] B6. `xplat/mojmap` subproject removed (everything is mojmap now); publication artifactIds documented.
+- [ ] B7. `neoforge.mods.toml` neoforge dependency range `[26.1,)`; `fabric.mod.json` deps updated for Fabric API on 26.1 (no `fabric` mod id).
+
+### C. Completion proof
+- [ ] C1. `./gradlew :fabric:build` succeeds (JDK 25).
+- [ ] C2. `./gradlew :neoforge:build` succeeds (JDK 25).
+- [ ] C3. No leftover conflict markers, no `TODO(port)` or stubbed functionality introduced by this branch.
+- [ ] C4. Fabric client launches (runClient), reaches a world, EMI index/UI renders in the inventory (screenshot), log free of mixin apply failures / EMI errors.
+- [ ] C5. NeoForge client launches likewise (screenshot, clean log).
+- [ ] C6. Fabric dedicated server (runServer) starts and stops cleanly with EMI.
+- [ ] C7. NeoForge dedicated server (runServer) starts and stops cleanly with EMI.
+
+### D. Quality (multi-agent adversarial review, Opus)
+- [ ] D1. Review round 1: merge-resolution correctness (upstream delta fully re-applied, nothing from the fork lost), findings verified + fixed.
+- [ ] D2. Review round: port regressions vs upstream 1.21 behaviour (dropped features, API breaks, mixin coverage), findings verified + fixed.
+- [ ] D3. Two consecutive clean review rounds.
+
+### E. Delivery
+- [ ] E1. Commits on `26.1` with attribution preserved (fork commits kept via a real merge).
+- [ ] E2. `CHANGELOG.md` entry for the port.
+- [ ] E3. Push + PR (only to a remote the user owns; never to `emilyploszaj/emi` upstream, see D-PR).
+- [ ] E4. Morning report.
+
+## Known bounds / not in scope
+- Legacy `forge/` (1.20.4 Forge) module stays excluded from `settings.gradle`, untouched beyond merge fallout.
+- Runtime verification is limited to what can be automated locally (launch, inventory screenshot, logs); no full manual QA of every recipe category.
