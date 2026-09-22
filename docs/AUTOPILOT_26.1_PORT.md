@@ -31,26 +31,26 @@ Merge the MIT-licensed community port `link-fgfgui/emi@26.1` (remote `linkfgfgui
 - [x] C1. `./gradlew :fabric:build` succeeds (JDK 25).
 - [x] C2. `./gradlew :neoforge:build` succeeds (JDK 25).
 - [ ] C3. No leftover conflict markers, no `TODO(port)` or stubbed functionality introduced by this branch.
-- [x] C4. Fabric client launches (runClient), reaches a world, EMI index/UI renders in the inventory (screenshot), log free of mixin apply failures / EMI errors. Verified 2026-09-22: quick-play into saved world, 3731 recipes baked in 495 ms, index/favorites/search/recipe screen/crafting recipe all rendered, clean disconnect.
-- [x] C5. NeoForge client launches likewise (screenshot, clean log). Verified 2026-09-22 after the D8 dev-classpath fix: quick-play into the saved world, 3727 recipes baked in 715 ms, index/search/recipe screen rendered, clean disconnect.
+- [x] C4. Fabric client launches (runClient), reaches a world, EMI index/UI renders in the inventory (screenshot), log free of mixin apply failures / EMI errors. Verified 2026-09-22: quick-play into saved world, 3731 recipes baked in 495 ms, index/favorites/search/recipe screen/crafting recipe all rendered, clean disconnect. Re-verified on the merged branch (25295fa8): exactly one reload per join (tags then recipes), tag icons render (logs/coals tag models), recipe tree screen opens.
+- [x] C5. NeoForge client launches likewise (screenshot, clean log). Verified 2026-09-22 after the D8 dev-classpath fix: quick-play into the saved world, 3727 recipes baked in 715 ms, index/search/recipe screen rendered, clean disconnect. Re-verified on the merged branch (25295fa8): exactly one reload per join via TagsUpdatedEvent.ClientPacketReceived + RecipesReceivedEvent, 3727 recipes, tag icons render.
 - [x] C6. Fabric dedicated server (runServer) loads EMI (43 mods) with no errors and stops at the EULA gate (EULA deliberately not accepted on the user's behalf; bounded check).
 - [x] C7. NeoForge dedicated server (runServer) loads EMI and reaches `Done (1.539s)!` (the NeoForge dev launcher does not gate on the EULA); no EMI warnings/errors; killed after the 60 s idle pause.
 
 ### D. Quality (multi-agent adversarial review, Opus)
-- [ ] D1. Review round 1: merge-resolution correctness (upstream delta fully re-applied, nothing from the fork lost), findings verified + fixed.
-- [ ] D2. Review round: port regressions vs upstream 1.21 behaviour (dropped features, API breaks, mixin coverage), findings verified + fixed.
+- [x] D1. Review round 1: merge-resolution correctness (upstream delta fully re-applied, nothing from the fork lost), findings verified + fixed (branch fix/f2-recipes, fix/f3-jemi).
+- [x] D2. Review round: port regressions vs upstream 1.21 behaviour (dropped features, API breaks, mixin coverage), findings verified + fixed (33-finding audit + JEI-adapter review + runtime/mixin review; fixes in fix/f1-rendering, fix/f2-recipes, fix/f3-jemi and 476e9745).
 - [ ] D3. Two consecutive clean review rounds.
 
 ### E. Delivery
-- [ ] E1. Commits on `26.1` with attribution preserved (fork commits kept via a real merge).
-- [ ] E2. `CHANGELOG.md` entry for the port.
+- [x] E1. Commits on `26.1` with attribution preserved (fork commits kept via a real merge).
+- [x] E2. `CHANGELOG.md` entry for the port.
 - [ ] E3. Push + PR (only to a remote the user owns; never to `emilyploszaj/emi` upstream, see D-PR).
 - [ ] E4. Morning report.
 
 ### F. Regression fix round (from the fork-port audit, see decisions D7+)
-- [ ] F1. Rendering/UI regressions fixed: tag icons (custom tag models), global tint (BoM tree colours, jeb_ search bar), text alpha, screenshot transparency, top-effects text, deferred-tooltip robustness, loader fluid sprite APIs, `EmiTooltipComponent.getWidth` API restored.
-- [ ] F2. Recipe/sync regressions fixed: cheat `give` keeps components + namespace, JEMI info recipes registered synchronously, suspicious stew / map cloning recipes, missing-recipe-map warning, recipe-serializer sync load order, `dyeable` tag, effect-screen base class, NeoForge double reload, AE2 hack removed, JEMI display overrides.
-- [ ] F3. Batched renderer: decision recorded (superseded by vanilla GUI item atlas or flagged as perf regression).
+- [x] F1. Rendering/UI regressions fixed: tag icons (custom tag models), global tint (BoM tree colours, jeb_ search bar), text alpha, screenshot transparency, top-effects text, deferred-tooltip robustness, loader fluid sprite APIs, `EmiTooltipComponent.getWidth` API restored.
+- [x] F2. Recipe/sync regressions fixed: cheat `give` keeps components + namespace, JEMI info recipes registered synchronously, suspicious stew / map cloning recipes, missing-recipe-map warning, recipe-serializer sync load order, `dyeable` tag, effect-screen base class, NeoForge double reload, AE2 hack removed, JEMI display overrides.
+- [x] F3. Batched renderer: decision recorded (superseded by vanilla GUI item atlas or flagged as perf regression).
 
 ## Known bounds / not in scope
 - Legacy `forge/` (1.20.4 Forge) module stays excluded from `settings.gradle`, untouched beyond merge fallout.
