@@ -26,10 +26,10 @@ Apply the community fork's 26.1→26.2 delta (`linkfgfgui/26.2`, commits 812a9e1
 - [x] B5. No conflict markers / new stubs.
 
 ### C. Quality
-- [ ] C1. Adversarial delta review (mixin targets vs 26.2 bytecode, JEMI vs JEI 30, recipe/sync paths, rendering), findings fixed.
+- [x] C1. Adversarial delta review (mixin targets vs 26.2 bytecode, JEMI vs JEI 30, recipe/sync paths, rendering), findings fixed.
 - [ ] C2. Second delta review of the fixes.
 
 ### D. Delivery
 - [ ] D1. Pushed to `origin` (Pandaismyname1/SEMI) as branch `26.2`; README supported-versions table updated on both branches as appropriate.
-- [ ] D2. `CHANGELOG.md` for the 26.2 release.
+- [x] D2. `CHANGELOG.md` for the 26.2 release.
 - [ ] D3. Report (`docs/AUTOPILOT_26.2_REPORT.md`) and final message.
