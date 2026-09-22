@@ -104,7 +104,7 @@ import net.minecraft.world.level.material.Fluids;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import it.unimi.dsi.fastutil.objects.Object2FloatMap;
-import it.unimi.dsi.fastutil.objects.Object2FloatOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2FloatLinkedOpenHashMap;
 import com.google.common.collect.Sets;
 
 import org.jetbrains.annotations.Nullable;
@@ -766,7 +766,8 @@ public class VanillaPlugin implements EmiPlugin {
 		// Resolved once, not once per item, and certainly not once per comparison
 		EmiPortClient.ContextIntSource source = EmiPortClient.contextIntSource();
 		Set<String> unhandledTypes = Sets.newLinkedHashSet();
-		Object2FloatMap<Item> chances = new Object2FloatOpenHashMap<>();
+		// Linked, so the item set keeps registry order and the index looks like it did in 26.2
+		Object2FloatMap<Item> chances = new Object2FloatLinkedOpenHashMap<>();
 		int unresolved = 0;
 		for (Item item : EmiPort.getItemRegistry()) {
 			Compostable compostable = item.components().get(DataComponents.COMPOSTABLE);
@@ -780,9 +781,9 @@ public class VanillaPlugin implements EmiPlugin {
 				unresolved++;
 			}
 		}
-		if (unresolved > 0 && source.isEmpty()) {
+		if (unresolved > 0) {
 			EmiReloadLog.warn("The compost chance of " + unresolved + " items is unknown, so they are not"
-				+ " listed as compostable. " + ContextIntValues.MISSING_NUMBER_PROVIDERS);
+				+ " listed as compostable." + (source.isEmpty() ? " " + ContextIntValues.MISSING_NUMBER_PROVIDERS : ""));
 		}
 		ContextIntValues.warnUnhandled(unhandledTypes, "composting chances");
 		compressRecipesToTags(chances.keySet(), (a, b) -> {
@@ -893,23 +894,16 @@ public class VanillaPlugin implements EmiPlugin {
 		} else if (predicate instanceof MatchingBlockTagPredicate matching) {
 			return EmiTagKey.of(((MatchingBlockTagPredicateAccessor) matching).emi$getTag()).getList();
 		} else if (predicate instanceof CombiningPredicate combining) {
-			// Compound checks describe the surroundings as well: tilling wants air above, so the
-			// transformation applies to the child that looks at the block itself, offset zero.
-			// Only if none of those names blocks does the first child that does win, which is what
-			// this did before the offset was consulted.
-			List<BlockPredicate> children = ((CombiningPredicateAccessor) combining).emi$getPredicates();
-			for (BlockPredicate child : children) {
+			// Compound checks describe the surroundings as well: tilling wants air above, so only
+			// the child that looks at the block itself, offset zero, names the blocks the
+			// transformation applies to. Falling back to any other child would publish the
+			// neighbour's blocks, which is the bug this avoids.
+			for (BlockPredicate child : ((CombiningPredicateAccessor) combining).emi$getPredicates()) {
 				if (testsOwnPosition(child)) {
 					List<Block> blocks = getPredicateBlocks(child);
 					if (!blocks.isEmpty()) {
 						return blocks;
 					}
-				}
-			}
-			for (BlockPredicate child : children) {
-				List<Block> blocks = getPredicateBlocks(child);
-				if (!blocks.isEmpty()) {
-					return blocks;
 				}
 			}
 		}

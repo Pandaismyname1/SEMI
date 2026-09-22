@@ -98,7 +98,8 @@ public class EmiBind {
 	public boolean isHeld() {
 		for (ModifiedKey boundKey : boundKeys) {
 			if (EmiInput.getCurrentModifiers() == boundKey.modifiersToMatch()) {
-				if (boundKey.key.getType() == InputConstants.Type.KEYBOARD && boundKey.key != InputConstants.UNKNOWN
+				if (boundKey.key.getType() == InputConstants.Type.KEYBOARD
+						&& boundKey.key.getValue() != InputConstants.UNKNOWN.getValue()
 						&& isKeyboardScancode(boundKey.key.getValue())) {
 					if (InputConstants.isKeyDown(boundKey.key.getValue())) {
 						return true;
