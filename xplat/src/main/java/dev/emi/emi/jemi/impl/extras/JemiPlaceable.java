@@ -83,7 +83,7 @@ public class JemiPlaceable<T extends IPlaceable<T>> implements IPlaceable<T> {
 			} catch (Exception e) {
 				EmiLog.error("Error building JEI widget tooltip", e);
 			}
-			return builder.tooltip;
+			return builder.buildTooltip();
 		}, x, y, getWidth(), getHeight());
 	}
 }

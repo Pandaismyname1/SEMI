@@ -1,6 +1,5 @@
 package dev.emi.emi.jemi.impl;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -20,9 +19,9 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
 
 public class JemiTooltipBuilder implements ITooltipBuilder {
-	public final List<ClientTooltipComponent> tooltip = Lists.newArrayList();
-	// The single ordered record of everything added, text and components alike, so
-	// getLines() can hand JEI back the lines in the order the plugin wrote them.
+	// The single ordered record of everything added, text and components alike. JEI's own
+	// JeiTooltip keeps exactly this one list and derives everything else from it, so getLines()
+	// can hand plugins the live list and buildTooltip() renders whatever it holds at the time.
 	private final List<Either<FormattedText, TooltipComponent>> lines = Lists.newArrayList();
 
 	@Override
@@ -30,9 +29,7 @@ public class JemiTooltipBuilder implements ITooltipBuilder {
 		if (component == null) {
 			return;
 		}
-		Component text = asComponent(component);
-		tooltip.add(ClientTooltipComponent.create(text.getVisualOrderText()));
-		lines.add(Either.left(text));
+		lines.add(Either.left(asComponent(component)));
 	}
 
 	/**
@@ -61,12 +58,27 @@ public class JemiTooltipBuilder implements ITooltipBuilder {
 
 	@Override
 	public void add(TooltipComponent data) {
-		try {
-			tooltip.add(ClientTooltipComponent.create(data));
-			lines.add(Either.right(data));
-		} catch (Exception e) {
-			EmiLog.error("Error converting TooltipComponent", e);
+		if (data == null) {
+			return;
 		}
+		lines.add(Either.right(data));
+	}
+
+	/**
+	 * Renders the lines added so far, in order. Built on demand rather than as the lines come in,
+	 * so edits a plugin makes through {@link #getLines()} are picked up.
+	 */
+	public List<ClientTooltipComponent> buildTooltip() {
+		List<ClientTooltipComponent> ret = Lists.newArrayList();
+		for (Either<FormattedText, TooltipComponent> line : lines) {
+			try {
+				line.left().ifPresent(text -> ret.add(ClientTooltipComponent.create(asComponent(text).getVisualOrderText())));
+				line.right().ifPresent(data -> ret.add(ClientTooltipComponent.create(data)));
+			} catch (Exception e) {
+				EmiLog.error("Error converting TooltipComponent", e);
+			}
+		}
+		return ret;
 	}
 
 	@Override
@@ -103,7 +115,8 @@ public class JemiTooltipBuilder implements ITooltipBuilder {
 
 	@Override
 	public List<Either<FormattedText, TooltipComponent>> getLines() {
-		// Mutable, and a copy: JEI hands this list to plugins, which may edit it.
-		return new ArrayList<>(lines);
+		// The live list, as JEI's JeiTooltip.getLines() returns: plugins edit it in place and the
+		// edits have to be visible to buildTooltip().
+		return lines;
 	}
 }

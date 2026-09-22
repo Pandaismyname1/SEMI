@@ -23,6 +23,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.NeoForgeRenderTypes;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.ContainerScreenEvent;
 import net.neoforged.neoforge.client.event.AddClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RecipesReceivedEvent;
@@ -32,11 +33,27 @@ import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.TagsUpdatedEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraft.world.item.crafting.RecipeMap;
 
 @EventBusSubscriber(modid = "emi", value = Dist.CLIENT)
 public class EmiClientNeoForge {
 	/** Warn once per connection that the server sent no recipes, not once per datapack reload. */
 	private static boolean warnedAboutEmptyRecipes = false;
+	/** Warn once per connection that the server never sent a recipe payload at all. */
+	private static boolean warnedAboutMissingRecipes = false;
+	/**
+	 * How long the vanilla recipe packet waits for NeoForge's {@code RecipeContentPayload} before
+	 * giving up. The payload is written to the same connection immediately after the vanilla packet,
+	 * so a second is a very generous bound; it exists only so a server that never sends one cannot
+	 * leave EMI waiting forever.
+	 */
+	private static final int RECIPE_FALLBACK_TICKS = 20;
+	/**
+	 * Ticks remaining on the pending fallback, or -1 when none is armed. Client thread only: the
+	 * vanilla packet handler, NeoForge's payload handler and {@code ClientTickEvent.Post} all run
+	 * there.
+	 */
+	private static int recipeFallbackTicks = -1;
 
 	@SubscribeEvent
 	public static void clientInit(FMLClientSetupEvent event) {
@@ -46,6 +63,7 @@ public class EmiClientNeoForge {
 		NeoForge.EVENT_BUS.addListener(EmiClientNeoForge::tagsReloaded);
 		NeoForge.EVENT_BUS.addListener(EmiClientNeoForge::recipesReceived);
 		NeoForge.EVENT_BUS.addListener(EmiClientNeoForge::playerLoggedOut);
+		NeoForge.EVENT_BUS.addListener(EmiClientNeoForge::clientTick);
 		NeoForge.EVENT_BUS.addListener(EmiClientNeoForge::renderScreenForeground);
 		NeoForge.EVENT_BUS.addListener(EmiClientNeoForge::postRenderScreen);
 		ModList.get().getModContainerById("emi").orElseThrow().registerExtensionPoint(IConfigScreenFactory.class,
@@ -75,6 +93,8 @@ public class EmiClientNeoForge {
 	 * client keep working, but it says once why there are no crafting recipes.
 	 */
 	public static void recipesReceived(RecipesReceivedEvent event) {
+		// Authoritative: the server really did synchronize, so drop the pending fallback.
+		recipeFallbackTicks = -1;
 		if (event.getRecipeTypes().isEmpty() && !warnedAboutEmptyRecipes) {
 			warnedAboutEmptyRecipes = true;
 			EmiLog.warn("The server did not synchronize any recipes with EMI. Crafting recipes will"
@@ -86,9 +106,55 @@ public class EmiClientNeoForge {
 		EmiReloadManager.reloadRecipes();
 	}
 
+	/**
+	 * Arms the bounded fallback for the recipes half, called from {@code ClientPacketListenerMixin}
+	 * once the vanilla {@code ClientboundUpdateRecipesPacket} has been handled.
+	 * <p>
+	 * NeoForge's patched {@code PlayerList} calls {@code CommonHooks.sendRecipes} <em>after</em>
+	 * sending the vanilla packet, in both {@code placeNewPlayer} and {@code reloadResources}, so
+	 * unlike Fabric this cannot report the half directly - the real map is still in flight. It only
+	 * starts a countdown, which {@link #recipesReceived} cancels as soon as the payload lands. See
+	 * D-F4b.1 in the decision log.
+	 */
+	public static void onVanillaRecipesReceived() {
+		recipeFallbackTicks = RECIPE_FALLBACK_TICKS;
+	}
+
+	/**
+	 * Expires the pending fallback. If nothing was ever recorded for this connection - a vanilla,
+	 * Paper or Fabric server, where {@code CommonHooks.sendRecipes} sends no payload at all - EMI
+	 * installs an empty map so the item index, tags and everything else derived from the client
+	 * still load. If a map is already recorded (a {@code /reload} on such a server re-sends the
+	 * vanilla packet while the empty map from the join is still in place) the reload is reported
+	 * with it unchanged.
+	 */
+	public static void clientTick(ClientTickEvent.Post event) {
+		if (recipeFallbackTicks < 0) {
+			return;
+		}
+		if (--recipeFallbackTicks >= 0) {
+			return;
+		}
+		recipeFallbackTicks = -1;
+		if (!EmiAgnosNeoForge.hasReceivedRecipeMap()) {
+			if (!warnedAboutMissingRecipes) {
+				warnedAboutMissingRecipes = true;
+				EmiLog.warn("The server is not synchronizing recipes with EMI. Crafting recipes will"
+					+ " be unavailable; everything EMI derives from the client (the item index, tags,"
+					+ " world interactions, fuels, brewing, ...) still works. This happens on any"
+					+ " server that does not run NeoForge, since NeoForge only sends its recipe"
+					+ " payload to a NeoForge connection.");
+			}
+			EmiAgnosNeoForge.setReceivedRecipeMap(RecipeMap.EMPTY);
+		}
+		EmiReloadManager.reloadRecipes();
+	}
+
 	public static void playerLoggedOut(ClientPlayerNetworkEvent.LoggingOut event) {
 		EmiAgnosNeoForge.setReceivedRecipeMap(null);
+		recipeFallbackTicks = -1;
 		warnedAboutEmptyRecipes = false;
+		warnedAboutMissingRecipes = false;
 	}
 
 	public static void renderScreenForeground(ContainerScreenEvent.Render.Foreground event) {

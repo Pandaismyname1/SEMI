@@ -221,7 +221,10 @@ public class VanillaPlugin implements EmiPlugin {
 
 	@Override
 	public void register(EmiRegistry registry) {
-		if (registry.getRecipeMap() == null) {
+		RecipeMap recipeMap = registry.getRecipeMap();
+		// Both loaders now always install a map, falling back to RecipeMap.EMPTY on a server that
+		// does not synchronize, so "no recipes" means an empty map rather than a null one.
+		if (recipeMap == null || recipeMap.values().isEmpty()) {
 			EmiReloadLog.warn("No recipes were synchronized from the server, skipping every vanilla recipe type");
 		}
 		registry.addCategory(CRAFTING);

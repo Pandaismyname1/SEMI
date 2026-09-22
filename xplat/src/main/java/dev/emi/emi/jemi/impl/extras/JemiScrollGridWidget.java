@@ -73,6 +73,20 @@ public class JemiScrollGridWidget implements IScrollGridWidget {
 		return Math.min(slots.size(), gridWidth * gridHeight);
 	}
 
+	/**
+	 * Whether this grid owns {@code slot} but scrolled it out of the visible window. Such a slot is
+	 * never repositioned by {@link #layoutSlots()}, so it is still at its default (0, 0) and must
+	 * not get a slot widget of its own - JEI would not have drawn it either. Slots this grid does
+	 * not own are not clipped.
+	 */
+	public boolean isClipped(IRecipeSlotDrawable slot) {
+		if (slots == null) {
+			return false;
+		}
+		int index = slots.indexOf(slot);
+		return index >= 0 && index >= getVisibleSlotCount();
+	}
+
 	@Override
 	public Optional<RecipeSlotUnderMouse> getSlotUnderMouse(double mouseX, double mouseY) {
 		// Unimplemented
@@ -117,12 +131,4 @@ public class JemiScrollGridWidget implements IScrollGridWidget {
 		return new ScreenRectangle(getPosition(), getWidth(), getHeight());
 	}
 
-	/** Number of rows actually occupied by the visible slots, never more than {@code gridHeight}. */
-	public int getOccupiedRows() {
-		int count = getVisibleSlotCount();
-		if (count <= 0) {
-			return 0;
-		}
-		return (count + gridWidth - 1) / gridWidth;
-	}
 }

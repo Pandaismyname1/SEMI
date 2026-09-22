@@ -176,8 +176,17 @@ public class FillRecipeC2SPacket implements EmiPacket {
 	private static final int MAX_SLOTS = 65536;
 
 	/**
-	 * Rejects the packet outright rather than returning a half-read value: the buffer is shared
-	 * with the rest of the connection, so bailing out mid-read would leave it desynchronized.
+	 * An upper bound on how many input slots the compressed ranges may expand to, independent of how
+	 * large the indices themselves may be. Without it a six byte packet declaring one range of
+	 * {@code 0..65535} costs the server 65536 boxed integers; no real menu has anywhere near that
+	 * many input sources.
+	 */
+	private static final int MAX_EXPANDED_SLOTS = 4096;
+
+	/**
+	 * Rejects the packet outright rather than returning a half-read value. Throwing is the clean
+	 * way out: {@code PacketDecoder} is decoding a single framed packet, so the exception discards
+	 * exactly this packet and the rest of the connection is unaffected.
 	 */
 	private static void checkCount(int count, String what) {
 		if (count < 0 || count > MAX_SLOTS) {
@@ -193,9 +202,14 @@ public class FillRecipeC2SPacket implements EmiPacket {
 		for (int i = 0; i < amount; i++) {
 			int low = buf.readVarInt();
 			int high = buf.readVarInt();
-			if (low < 0 || high < low || high - low >= MAX_SLOTS || list.size() + (high - low + 1) > MAX_SLOTS) {
+			if (low < 0 || high < low || high > MAX_SLOTS) {
 				throw new DecoderException("EMI fill recipe packet declared an input slot range of "
 					+ low + ".." + high + ", which is outside of 0.." + MAX_SLOTS);
+			}
+			// Large indices stay legal, but the expansion of every range together does not.
+			if ((long) list.size() + (high - low + 1) > MAX_EXPANDED_SLOTS) {
+				throw new DecoderException("EMI fill recipe packet declared input slot ranges that"
+					+ " expand to more than " + MAX_EXPANDED_SLOTS + " slots");
 			}
 			for (int j = low; j <= high; j++) {
 				list.add(j);

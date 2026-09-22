@@ -28,6 +28,8 @@ import net.minecraft.server.packs.resources.PreparableReloadListener;
 import net.minecraft.world.item.crafting.RecipeMap;
 
 public class EmiClientFabric implements ClientModInitializer {
+	/** Warn once per connection that the server sent no recipes, not once per datapack reload. */
+	private static boolean warnedAboutMissingRecipes = false;
 
 	@Override
 	public void onInitializeClient() {
@@ -67,7 +69,7 @@ public class EmiClientFabric implements ClientModInitializer {
 		// report its own half. This event only records the map; the "recipes" half is reported by
 		// the vanilla recipe packet instead, see onVanillaRecipesReceived.
 		ClientRecipeSynchronizedEvent.EVENT.register((client, recipes) -> {
-			EmiAgnosFabric.setReceivedRecipeMap(RecipeMap.create(recipes.recipes()));
+			EmiAgnosFabric.setPendingRecipeMap(RecipeMap.create(recipes.recipes()));
 		});
 
 		// Tags arrive during the configuration phase on join and in the play phase on /reload;
@@ -80,6 +82,8 @@ public class EmiClientFabric implements ClientModInitializer {
 
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
 			EmiAgnosFabric.setReceivedRecipeMap(null);
+			EmiAgnosFabric.consumePendingRecipeMap();
+			warnedAboutMissingRecipes = false;
 		});
 	}
 
@@ -93,15 +97,26 @@ public class EmiClientFabric implements ClientModInitializer {
 	 * any data on such a server. The vanilla packet, on the other hand, always arrives, and Fabric
 	 * queues its payload strictly before it on both send paths, so anything the server was going to
 	 * synchronize is already recorded by the time this runs. See D-F2b in the decision log.
+	 * <p>
+	 * The recorded map is consumed rather than read, so it only applies to the sync it arrived with:
+	 * a {@code /reload} whose sync sends no payload falls back to an empty map instead of silently
+	 * keeping the pre-reload one. See D-F4b.2.
 	 */
 	public static void onVanillaRecipesReceived() {
-		if (!EmiAgnosFabric.hasReceivedRecipeMap()) {
-			EmiLog.warn("The server did not synchronize any recipes with EMI. Crafting recipes will"
-				+ " be unavailable; everything EMI derives from the client (the item index, tags,"
-				+ " world interactions, fuels, brewing, ...) still works. This happens on a vanilla"
-				+ " server, or on a server whose Fabric API does not synchronize recipe serializers.");
-			EmiAgnosFabric.setReceivedRecipeMap(RecipeMap.EMPTY);
+		RecipeMap map = EmiAgnosFabric.consumePendingRecipeMap();
+		if (map == null) {
+			// Nothing was synchronized for *this* packet. The previously recorded map, if any,
+			// describes the state before this reload, so it must not be reused.
+			if (!warnedAboutMissingRecipes) {
+				warnedAboutMissingRecipes = true;
+				EmiLog.warn("The server did not synchronize any recipes with EMI. Crafting recipes will"
+					+ " be unavailable; everything EMI derives from the client (the item index, tags,"
+					+ " world interactions, fuels, brewing, ...) still works. This happens on a vanilla"
+					+ " server, or on a server whose Fabric API does not synchronize recipe serializers.");
+			}
+			map = RecipeMap.EMPTY;
 		}
+		EmiAgnosFabric.setReceivedRecipeMap(map);
 		EmiReloadManager.reloadRecipes();
 	}
 

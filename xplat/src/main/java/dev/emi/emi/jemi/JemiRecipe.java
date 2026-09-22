@@ -146,9 +146,11 @@ public class JemiRecipe<T> implements EmiRecipe {
 		if (opt.isPresent()) {
 			widgets.add(new JemiWidget(0, 0, getDisplayWidth(), getDisplayHeight(), opt.get()));
 		}
+		List<JemiScrollGridWidget> scrollGrids = List.of();
 		try {
 			JemiRecipeExtrasBuilder extras = new JemiRecipeExtrasBuilder(new JemiRecipeSlotDrawablesView(slots));
 			category.createRecipeExtras(extras, recipe, JemiPlugin.runtime.getJeiHelpers().getFocusFactory().getEmptyFocusGroup());
+			scrollGrids = extras.scrollGrids;
 			for (JemiWidgetBuilder b : extras.widgets) {
 				b.addWidgets(widgets);
 			}
@@ -163,6 +165,11 @@ public class JemiRecipe<T> implements EmiRecipe {
 		}
 		if (opt.isPresent()) {
 			for (JemiRecipeSlot slot : slots) {
+				// A slot a scroll grid clipped was never given a position, so a widget for it would
+				// pile up at (0, 0) on top of the recipe. JEI does not draw it either.
+				if (isClipped(scrollGrids, slot)) {
+					continue;
+				}
 				if (slot.tankInfo != null && !slot.getIngredients(JemiUtil.getFluidType()).toList().isEmpty()) {
 					widgets.add(new JemiTankWidget(slot, this));
 				} else {
@@ -172,6 +179,15 @@ public class JemiRecipe<T> implements EmiRecipe {
 		}
 	}
 
+	private static boolean isClipped(List<JemiScrollGridWidget> grids, JemiRecipeSlot slot) {
+		for (JemiScrollGridWidget grid : grids) {
+			if (grid.isClipped(slot)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/**
 	 * Draws the 18x18 slot cell backgrounds for a JEI scroll grid. JEI's own
 	 * {@code ScrollGridRecipeWidget} draws these; EMI renders slot contents via
@@ -179,10 +195,9 @@ public class JemiRecipe<T> implements EmiRecipe {
 	 * textures underneath the slot widgets.
 	 */
 	private void addScrollGridBackground(WidgetHolder widgets, JemiScrollGridWidget grid) {
-		// Only the cells the grid actually lays out get a background; EMI cannot
-		// scroll, so anything past the first gridWidth * gridHeight window is not
-		// shown and must not paint a cell outside the grid's bounds.
-		int count = grid.getVisibleSlotCount();
+		// The whole gridWidth * gridHeight rectangle is painted, as JEI's own widget does: it draws
+		// a cell background for every cell of the window, whether or not a slot is scrolled into it.
+		int count = grid.gridWidth * grid.gridHeight;
 		int cellSize = 18;
 		for (int i = 0; i < count; i++) {
 			int col = i % grid.gridWidth;
@@ -222,7 +237,7 @@ public class JemiRecipe<T> implements EmiRecipe {
 		public List<ClientTooltipComponent> getTooltip(int mouseX, int mouseY) {
 			JemiTooltipBuilder builder = new JemiTooltipBuilder();
 			category.getTooltip(builder, recipe, recipeLayoutDrawable.getRecipeSlotsView(), mouseX, mouseY);
-			return builder.tooltip;
+			return builder.buildTooltip();
 		}
 
 		// Upstream routed both of these to IRecipeCategory.handleInput, which JEI 29.40

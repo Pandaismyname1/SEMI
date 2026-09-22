@@ -137,7 +137,7 @@ public class JemiSlotWidget extends SlotWidget {
 			try {
 				JemiTooltipBuilder tooltipBuilder = new JemiTooltipBuilder();
 				slot.richTooltipCallback.onRichTooltip(slot, tooltipBuilder);
-				list.addAll(tooltipBuilder.tooltip);
+				list.addAll(tooltipBuilder.buildTooltip());
 			} catch (Exception e) {
 				EmiLog.error("Error initializing JEI TooltipBuilder", e);
 			}

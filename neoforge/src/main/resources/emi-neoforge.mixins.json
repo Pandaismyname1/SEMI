@@ -4,6 +4,7 @@
   "package": "dev.emi.emi.mixin.neoforge",
   "compatibilityLevel": "JAVA_17",
   "client": [
+    "ClientPacketListenerMixin"
   ],
   "mixins": [
   ],

@@ -19,7 +19,8 @@ import dev.emi.emi.api.recipe.EmiRecipe;
 import dev.emi.emi.api.recipe.VanillaEmiRecipeCategories;
 import dev.emi.emi.api.recipe.handler.EmiCraftContext;
 import dev.emi.emi.api.recipe.handler.StandardRecipeHandler;
-import dev.emi.emi.api.stack.EmiStack;
+import dev.emi.emi.registry.EmiRecipeFiller;
+import dev.emi.emi.runtime.EmiLog;
 
 public class StonecuttingRecipeHandler implements StandardRecipeHandler<StonecutterMenu> {
 
@@ -49,12 +50,23 @@ public class StonecuttingRecipeHandler implements StandardRecipeHandler<Stonecut
 		return handler.getSlot(1);
 	}
 
+	/** Warn once, not once per click, when the button index cannot be resolved. */
+	private static boolean warnedAboutUnresolvedIndex = false;
+
 	@Override
 	public boolean craft(EmiRecipe recipe, EmiCraftContext<StonecutterMenu> context) {
+		// The index the server expects describes the stack that is actually placed in the input
+		// slot, which for a tag input is whichever matching item the player happens to have, not
+		// the first stack of the displayed ingredient. Ask the filler for it before filling.
+		List<ItemStack> stacks = EmiRecipeFiller.getStacks(this, recipe, context.getScreen(), context.getAmount());
+		if (stacks == null || stacks.isEmpty() || stacks.get(0).isEmpty()) {
+			return false;
+		}
+		ItemStack input = stacks.get(0);
 		boolean action = StandardRecipeHandler.super.craft(recipe, context);
 		Minecraft client = Minecraft.getInstance();
 		StonecutterMenu sh = context.getScreenHandler();
-		int index = findRecipeIndex(recipe, client);
+		int index = findRecipeIndex(recipe, input, client);
 		if (index >= 0) {
 			client.gameMode.handleInventoryButtonClick(sh.containerId, index);
 			if (context.getDestination() == EmiCraftContext.Destination.CURSOR) {
@@ -62,8 +74,14 @@ public class StonecuttingRecipeHandler implements StandardRecipeHandler<Stonecut
 			} else if (context.getDestination() == EmiCraftContext.Destination.INVENTORY) {
 				client.gameMode.handleContainerInput(sh.containerId, 1, 0, ContainerInput.QUICK_MOVE, client.player);
 			}
+		} else if (action && !warnedAboutUnresolvedIndex) {
+			warnedAboutUnresolvedIndex = true;
+			EmiLog.warn("Could not resolve a stonecutter button index for the crafted recipe, so no"
+				+ " recipe was selected. Further occurrences will not be logged.");
 		}
-		return action;
+		// The item was moved into the slot, but without a selection nothing is crafted, so this is
+		// not a successful craft.
+		return action && index >= 0;
 	}
 
 	/**
@@ -79,17 +97,16 @@ public class StonecuttingRecipeHandler implements StandardRecipeHandler<Stonecut
 	 * <p>
 	 * The entries carry a display rather than an id, so they are matched by their resolved output
 	 * stack, and an ambiguous match clicks nothing rather than guessing.
+	 * <p>
+	 * {@code wantedInput} is the stack EMI is putting in the slot, taken from
+	 * {@link dev.emi.emi.registry.EmiRecipeFiller#getStacks}, not the recipe's first displayed
+	 * stack: for a tag input those differ and the list the server builds is per input item.
 	 */
-	private static int findRecipeIndex(EmiRecipe recipe, Minecraft client) {
+	private static int findRecipeIndex(EmiRecipe recipe, ItemStack wantedInput, Minecraft client) {
 		Level level = client.level;
-		if (level == null || recipe.getInputs().isEmpty() || recipe.getOutputs().isEmpty()) {
+		if (level == null || recipe.getOutputs().isEmpty()) {
 			return -1;
 		}
-		List<EmiStack> inputs = recipe.getInputs().get(0).getEmiStacks();
-		if (inputs.isEmpty()) {
-			return -1;
-		}
-		ItemStack wantedInput = inputs.get(0).getItemStack();
 		ItemStack wantedOutput = recipe.getOutputs().get(0).getItemStack();
 		if (wantedInput.isEmpty() || wantedOutput.isEmpty()) {
 			return -1;
