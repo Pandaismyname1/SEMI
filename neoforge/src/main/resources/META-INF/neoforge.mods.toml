@@ -1,6 +1,6 @@
 modLoader = "javafml"
 loaderVersion = "[4,)"
-#issueTrackerURL = ""
+issueTrackerURL = "https://github.com/Pandaismyname1/SEMI/issues"
 license = "MIT"
 
 [[mixins]]
@@ -12,10 +12,12 @@ config="emi-neoforge.mixins.json"
 [[mods]]
 modId = "emi"
 version = "${version}"
-displayName = "EMI"
+displayName = "SEMI"
 authors = "Emi"
+credits = "SEMI is an unofficial continuation of EMI by Emi (emilyploszaj) and contributors. The 26.1 port builds on link-fgfgui's community port. Maintained by Pandaismyname1 with AI assistance."
+displayURL = "https://github.com/Pandaismyname1/SEMI"
 description = '''
-A featureful and accessible item and recipe viewer
+Seasonal EMI, an unofficial continuation of EMI: a featureful and accessible item and recipe viewer
 '''
 logoFile = "icon.png"
 

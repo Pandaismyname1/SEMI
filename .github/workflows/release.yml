@@ -1,6 +1,20 @@
 name: Release
 on:
   workflow_dispatch:
+    inputs:
+      version_type:
+        description: Release channel on Modrinth and CurseForge
+        type: choice
+        default: release
+        options: [release, beta, alpha]
+
+# Project ids on each platform. Fill these in once the SEMI project pages exist.
+env:
+  MODRINTH_ID: ""
+  CURSEFORGE_ID: ""
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -45,64 +59,55 @@ jobs:
           RELEASE: true
         run: ./gradlew :fabric:build
 
-#      - name: Build Forge
-#        env:
-#          RELEASE: true
-#        run: ./gradlew :forge:build
-
       - name: Build NeoForge
         env:
           RELEASE: true
         run: ./gradlew :neoforge:build
 
-      - name: Publish
-        env:
-          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
-          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
-          RELEASE: true
-        run: ./gradlew publish modrinth curseforge -PmavenUrl="${{ secrets.MAVEN_URL }}" -PmavenUsername="${{ secrets.MAVEN_USERNAME }}" -PmavenPassword="${{ secrets.MAVEN_PASSWORD }}"
-
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.composite_version.outputs.composite_version }}
-          release_name: EMI ${{ steps.composite_version.outputs.composite_version }}
+          name: SEMI ${{ steps.composite_version.outputs.composite_version }}
           body_path: CHANGELOG.md
-          draft: false
-          prerelease: false
+          files: |
+            fabric/build/libs/semi-${{ steps.composite_version.outputs.composite_version }}+fabric.jar
+            neoforge/build/libs/semi-${{ steps.composite_version.outputs.composite_version }}+neoforge.jar
 
-      - name: Upload Fabric Release Asset
-        id: upload_fabric_release_asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # mc-publish skips a platform whose token is empty, so the two uploads below
+      # only run once MODRINTH_TOKEN / CURSEFORGE_TOKEN exist as repository secrets.
+      - name: Publish Fabric to Modrinth and CurseForge
+        uses: Kira-NT/mc-publish@v3.3.1
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./fabric/build/libs/emi-${{ steps.composite_version.outputs.composite_version }}+fabric.jar
-          asset_name: emi-${{ steps.composite_version.outputs.composite_version }}+fabric.jar
-          asset_content_type: application/java-archive
+          modrinth-id: ${{ env.MODRINTH_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          curseforge-id: ${{ env.CURSEFORGE_ID }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          name: SEMI ${{ steps.composite_version.outputs.composite_version }} Fabric
+          version: ${{ steps.composite_version.outputs.composite_version }}-fabric
+          version-type: ${{ inputs.version_type }}
+          changelog-file: CHANGELOG.md
+          loaders: |
+            fabric
+            quilt
+          game-versions: ${{ steps.minecraft_version.outputs.minecraft_version }}
+          java: ${{ matrix.java }}
+          dependencies: |
+            fabric-api(required)
+          files: fabric/build/libs/semi-${{ steps.composite_version.outputs.composite_version }}+fabric.jar
 
-      - name: Upload NeoForge Release Asset
-        id: upload_neoforge_release_asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish NeoForge to Modrinth and CurseForge
+        uses: Kira-NT/mc-publish@v3.3.1
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./neoforge/build/libs/emi-${{ steps.composite_version.outputs.composite_version }}+neoforge.jar
-          asset_name: emi-${{ steps.composite_version.outputs.composite_version }}+neoforge.jar
-          asset_content_type: application/java-archive
-
-#      - name: Upload Forge Release Asset
-#        id: upload_forge_release_asset
-#        uses: actions/upload-release-asset@v1
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#        with:
-#          upload_url: ${{ steps.create_release.outputs.upload_url }}
-#          asset_path: ./forge/build/libs/emi-${{ steps.composite_version.outputs.composite_version }}+forge.jar
-#          asset_name: emi-${{ steps.composite_version.outputs.composite_version }}+forge.jar
-#          asset_content_type: application/java-archive
+          modrinth-id: ${{ env.MODRINTH_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          curseforge-id: ${{ env.CURSEFORGE_ID }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          name: SEMI ${{ steps.composite_version.outputs.composite_version }} NeoForge
+          version: ${{ steps.composite_version.outputs.composite_version }}-neoforge
+          version-type: ${{ inputs.version_type }}
+          changelog-file: CHANGELOG.md
+          loaders: neoforge
+          game-versions: ${{ steps.minecraft_version.outputs.minecraft_version }}
+          java: ${{ matrix.java }}
+          files: neoforge/build/libs/semi-${{ steps.composite_version.outputs.composite_version }}+neoforge.jar
