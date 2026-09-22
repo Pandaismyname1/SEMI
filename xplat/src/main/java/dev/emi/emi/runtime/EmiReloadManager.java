@@ -47,7 +47,14 @@ public class EmiReloadManager {
 	 * costs nothing on NeoForge and two seconds on Fabric, where a reload is due anyway.
 	 */
 	private static final int DATA_CHANGE_GRACE_TICKS = 40;
+	/**
+	 * However often the grace is renewed, a change waits no longer than this for a handshake. A
+	 * half finished handshake, or a server that changes values faster than the grace runs out,
+	 * would otherwise defer the reload for the whole session.
+	 */
+	private static final long DATA_CHANGE_DEADLINE_MS = 30_000;
 	private static volatile int dataChangeGrace = 0;
+	private static volatile long dataChangeDeadline = 0;
 	public static volatile Component reloadStep = EmiPort.literal("");
 	public static volatile long reloadWorry = Long.MAX_VALUE;
 
@@ -89,6 +96,9 @@ public class EmiReloadManager {
 	 * clears the debt; only when no handshake turns up does {@link #clientTick()} pay it.
 	 */
 	public static synchronized void reloadForDataChange() {
+		if (!pendingDataChange) {
+			dataChangeDeadline = System.currentTimeMillis() + DATA_CHANGE_DEADLINE_MS;
+		}
 		pendingDataChange = true;
 		dataChangeGrace = DATA_CHANGE_GRACE_TICKS;
 		EmiLog.info("Server data changed, waiting to see whether a reload is already coming");
@@ -102,14 +112,17 @@ public class EmiReloadManager {
 		if (!pendingDataChange) {
 			return;
 		}
-		if (loadedResourcesMask != 0) {
-			// A handshake is under way; the reload it ends with consumes the change.
-			dataChangeGrace = DATA_CHANGE_GRACE_TICKS;
-			return;
-		}
-		if (dataChangeGrace > 0) {
-			dataChangeGrace--;
-			return;
+		boolean overdue = System.currentTimeMillis() >= dataChangeDeadline;
+		if (!overdue) {
+			if (loadedResourcesMask != 0) {
+				// A handshake is under way; the reload it ends with consumes the change.
+				dataChangeGrace = DATA_CHANGE_GRACE_TICKS;
+				return;
+			}
+			if (dataChangeGrace > 0) {
+				dataChangeGrace--;
+				return;
+			}
 		}
 		pendingDataChange = false;
 		// status is not per connection and the worker may still be finishing after a disconnect,
@@ -128,6 +141,7 @@ public class EmiReloadManager {
 			loadedResourcesMask = 0;
 			pendingDataChange = false;
 			dataChangeGrace = 0;
+			dataChangeDeadline = 0;
 			clear = true;
 			status = 0;
 			reloadWorry = Long.MAX_VALUE;
@@ -147,6 +161,7 @@ public class EmiReloadManager {
 			// for a reload is paid off by it.
 			pendingDataChange = false;
 			dataChangeGrace = 0;
+			dataChangeDeadline = 0;
 			step(EmiPort.literal("Starting Reload"));
 			status = 1;
 			if (thread != null && thread.isAlive()) {
@@ -221,12 +236,16 @@ public class EmiReloadManager {
 						continue;
 					}
 					Minecraft client = Minecraft.getInstance();
+					// These give up on this pass, but they must still go through the loop
+					// condition: breaking out of the loop skips restartOrFinish(), which would
+					// lose a reload() that asked for a restart while this pass was running and
+					// leave `thread` pointing at a dead thread with the status stuck at 1.
 					if (client.level == null) {
 						EmiReloadLog.warn("World is null");
-						break;
+						continue;
 					} else if (!ProxyRecipeManager.isAvailable()) {
 						EmiReloadLog.warn("Recipe Manager is null");
-						break;
+						continue;
 					}
 					List<EmiPluginContainer> plugins = Lists.newArrayList();
 					plugins.addAll(EmiAgnos.getPlugins().stream()
@@ -318,7 +337,14 @@ public class EmiReloadManager {
 					}
 				} catch (Throwable e) {
 					EmiReloadLog.warn("Critical error occured during reload:", e);
-					status = -1;
+					// Same reasoning as the status = 2 above: a clear() that landed while this pass
+					// was failing has already reset the status, and publishing over it would leak
+					// a stale status onto the title screen.
+					synchronized (EmiReloadManager.class) {
+						if (!clear) {
+							status = -1;
+						}
+					}
 					if (retries-- > 0) {
 						restart = true;
 					}
