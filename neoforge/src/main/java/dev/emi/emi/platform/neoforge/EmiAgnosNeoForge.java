@@ -65,7 +65,8 @@ import net.neoforged.fml.loading.FMLPaths;
 import net.neoforged.neoforgespi.language.ModFileScanData;
 
 public class EmiAgnosNeoForge extends EmiAgnos {
-	private static RecipeMap receivedRecipeMap;
+	// Written on the network thread, read on the reload and render threads
+	private static volatile RecipeMap receivedRecipeMap;
 
 	static {
 		EmiAgnos.delegate = new EmiAgnosNeoForge();

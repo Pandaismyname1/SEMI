@@ -17,6 +17,7 @@ import dev.emi.emi.api.EmiPlugin;
 import dev.emi.emi.api.EmiRegistry;
 import dev.emi.emi.api.recipe.EmiCraftingRecipe;
 import dev.emi.emi.api.recipe.EmiPatternCraftingRecipe;
+import dev.emi.emi.api.recipe.EmiInfoRecipe;
 import dev.emi.emi.api.recipe.EmiRecipe;
 import dev.emi.emi.api.recipe.EmiRecipeCategory;
 import dev.emi.emi.api.recipe.VanillaEmiRecipeCategories;
@@ -290,11 +291,11 @@ public class JemiPlugin implements IModPlugin, EmiPlugin {
 			identical.computeIfAbsent(text, k -> Lists.newArrayList()).addAll(group.getKey());
 		}
 		
-		// Registered synchronously: deferring to the client thread ran after the reload
-		// had already baked. JemiInfoRecipe defers only the font-dependent layout, which
-		// is what was unsafe on this thread. See JemiInfoRecipe's javadoc.
+		// Registered synchronously like upstream: deferring to the client thread ran after
+		// the reload had already baked. EmiInfoRecipe wraps its text lazily on the render
+		// thread, so constructing it here is safe.
 		for (Component text : identical.keySet()) {
-			registry.addRecipe(new JemiInfoRecipe(identical.get(text).stream().map(s -> (EmiIngredient) s).toList(), List.of(text), null));
+			registry.addRecipe(new EmiInfoRecipe(identical.get(text).stream().map(s -> (EmiIngredient) s).toList(), List.of(text), null));
 		}
 	}
 

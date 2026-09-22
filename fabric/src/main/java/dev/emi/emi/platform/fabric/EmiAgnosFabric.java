@@ -56,7 +56,8 @@ import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.level.material.Fluid;
 
 public class EmiAgnosFabric extends EmiAgnos {
-	private static RecipeMap receivedRecipeMap;
+	// Written on the network thread, read on the reload and render threads
+	private static volatile RecipeMap receivedRecipeMap;
 
 	static {
 		EmiAgnos.delegate = new EmiAgnosFabric();
