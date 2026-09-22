@@ -49,7 +49,7 @@ dependencies {
 	compileOnly("mezz.jei:${rootProject.jei_version}") {
 		transitive = false
 	}
-	compileOnly "com.terraformersmc:modmenu:18.0.1"
+	compileOnly "com.terraformersmc:modmenu:20.0.2"
 }
 
 processResources {
