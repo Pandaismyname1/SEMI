@@ -67,6 +67,14 @@ public class EmiAgnosFabric extends EmiAgnos {
 		receivedRecipeMap = recipeMap;
 	}
 
+	/**
+	 * Whether a recipe map has been recorded for the current connection, used to tell "the server
+	 * synchronized recipes" apart from "nothing arrived" before EMI falls back to an empty map.
+	 */
+	public static boolean hasReceivedRecipeMap() {
+		return receivedRecipeMap != null;
+	}
+
 	@Override
 	protected boolean isForgeAgnos() {
 		return false;

@@ -14,6 +14,7 @@ import org.jetbrains.annotations.Nullable;
 import com.google.common.collect.Lists;
 
 import dev.emi.emi.runtime.EmiLog;
+import io.netty.handler.codec.DecoderException;
 
 public class FillRecipeC2SPacket implements EmiPacket {
 	private final int syncId;
@@ -37,6 +38,7 @@ public class FillRecipeC2SPacket implements EmiPacket {
 		slots = parseCompressedSlots(buf);
 		crafting = Lists.newArrayList();
 		int craftingSize = buf.readVarInt();
+		checkCount(craftingSize, "crafting slots");
 		for (int i = 0; i < craftingSize; i++) {
 			int s = buf.readVarInt();
 			crafting.add(s);
@@ -47,6 +49,7 @@ public class FillRecipeC2SPacket implements EmiPacket {
 			output = -1;
 		}
 		int size = buf.readVarInt();
+		checkCount(size, "stacks");
 		stacks = Lists.newArrayList();
 		for (int i = 0; i < size; i++) {
 			stacks.add(ItemStack.OPTIONAL_STREAM_CODEC.decode(buf));
@@ -76,10 +79,6 @@ public class FillRecipeC2SPacket implements EmiPacket {
 
 	@Override
 	public void apply(Player player) {
-		if (slots == null || crafting == null) {
-			EmiLog.error("Client requested fill but passed input and crafting slot information was invalid, aborting");
-			return;
-		}
 		AbstractContainerMenu handler = player.containerMenu;
 		if (handler == null || handler.containerId != syncId) {
 			EmiLog.warn("Client requested fill but screen handler has changed, aborting");
@@ -169,22 +168,34 @@ public class FillRecipeC2SPacket implements EmiPacket {
 	}
 
 	/**
-	 * No menu has anywhere near this many slots, but the ranges come from the client, so they are
-	 * bounded to keep a hostile client from making the server expand a range of two billion slots.
+	 * An upper bound on every count and slot index this packet carries. Modded menus can be large,
+	 * so this is generous, but the values come from the client and have to be bounded to keep a
+	 * hostile client from making the server expand a range of two billion slots. Every index is
+	 * validated against the menu's real slot count in {@link #apply} anyway.
 	 */
-	private static final int MAX_SLOTS = 1024;
+	private static final int MAX_SLOTS = 65536;
+
+	/**
+	 * Rejects the packet outright rather than returning a half-read value: the buffer is shared
+	 * with the rest of the connection, so bailing out mid-read would leave it desynchronized.
+	 */
+	private static void checkCount(int count, String what) {
+		if (count < 0 || count > MAX_SLOTS) {
+			throw new DecoderException("EMI fill recipe packet declared " + count + " " + what
+				+ ", which is outside of 0.." + MAX_SLOTS);
+		}
+	}
 
 	private static List<Integer> parseCompressedSlots(FriendlyByteBuf buf) {
 		List<Integer> list = Lists.newArrayList();
 		int amount = buf.readVarInt();
-		if (amount < 0 || amount > MAX_SLOTS) {
-			return null;
-		}
+		checkCount(amount, "input slot ranges");
 		for (int i = 0; i < amount; i++) {
 			int low = buf.readVarInt();
 			int high = buf.readVarInt();
 			if (low < 0 || high < low || high - low >= MAX_SLOTS || list.size() + (high - low + 1) > MAX_SLOTS) {
-				return null;
+				throw new DecoderException("EMI fill recipe packet declared an input slot range of "
+					+ low + ".." + high + ", which is outside of 0.." + MAX_SLOTS);
 			}
 			for (int j = low; j <= high; j++) {
 				list.add(j);

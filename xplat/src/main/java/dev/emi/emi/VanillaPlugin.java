@@ -221,6 +221,9 @@ public class VanillaPlugin implements EmiPlugin {
 
 	@Override
 	public void register(EmiRegistry registry) {
+		if (registry.getRecipeMap() == null) {
+			EmiReloadLog.warn("No recipes were synchronized from the server, skipping every vanilla recipe type");
+		}
 		registry.addCategory(CRAFTING);
 		registry.addCategory(SMELTING);
 		registry.addCategory(BLASTING);
@@ -841,12 +844,12 @@ public class VanillaPlugin implements EmiPlugin {
 	@SuppressWarnings("unchecked")
 	private static <C extends RecipeInput, T extends Recipe<C>> Iterable<T> getRecipes(EmiRegistry registry, RecipeType<T> type) {
 		RecipeMap map = registry.getRecipeMap();
-		if (map != null) {
-			return map.byType(type).stream()
-				.map(e -> (T) e.value())::iterator;
+		if (map == null) {
+			// Warned once at the top of register, not once per recipe type.
+			return List.of();
 		}
-		EmiReloadLog.warn("No recipes were synchronized from the server, skipping recipe type " + type);
-		return List.of();
+		return map.byType(type).stream()
+			.map(e -> (T) e.value())::iterator;
 	}
 
 	private static void safely(String name, Runnable runnable) {

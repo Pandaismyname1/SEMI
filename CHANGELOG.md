@@ -10,3 +10,4 @@
 
 ### Tweaks
 * JEMI (JEI compatibility) updated for the JEI 29.40 API.
+* The NeoForge network channel now declares a version (`registrar("1")`). Only relevant if you mix EMI builds: an older EMI on one side and this build on the other will refuse to connect instead of silently degrading.

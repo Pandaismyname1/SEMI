@@ -1,6 +1,8 @@
 package dev.emi.emi.api.recipe;
 
 import java.util.List;
+
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -19,7 +21,7 @@ public class EmiInfoRecipe implements EmiRecipe {
 	private final List<EmiIngredient> stacks;
 	private final List<Component> rawText;
 	private final Identifier id;
-	private List<FormattedCharSequence> text;
+	private volatile List<FormattedCharSequence> text;
 
 	public EmiInfoRecipe(List<EmiIngredient> stacks, List<Component> text, @Nullable Identifier id) {
 		this.stacks = stacks;
@@ -32,11 +34,14 @@ public class EmiInfoRecipe implements EmiRecipe {
 	 * touches the GPU, so it must not happen while EMI is constructing recipes on its reload thread.
 	 * Info recipes are created there (from data packs and from JEI plugins), so the wrapping is
 	 * deferred until the recipe is first laid out or drawn, both of which happen on the render
-	 * thread.
+	 * thread. The assertion below makes a plugin that calls in from anywhere else fail loudly
+	 * instead of corrupting the font atlas, and the field is volatile so the render thread never
+	 * publishes a half-built list.
 	 */
 	private List<FormattedCharSequence> getText() {
 		List<FormattedCharSequence> text = this.text;
 		if (text == null) {
+			RenderSystem.assertOnRenderThread();
 			text = rawText.stream().flatMap(t -> CLIENT.font.split(t, getDisplayWidth() - 4).stream()).toList();
 			this.text = text;
 		}
