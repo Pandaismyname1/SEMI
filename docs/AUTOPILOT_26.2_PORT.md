@@ -12,18 +12,18 @@ Apply the community fork's 26.1→26.2 delta (`linkfgfgui/26.2`, commits 812a9e1
 
 ## Checklist
 ### A. Port
-- [ ] A1. Branch `26.2` created from `26.1`; versions bumped in `gradle.properties` / `fabric/build.gradle`.
-- [ ] A2. Fork's 26.2 delta applied and reconciled with SEMI's 26.1 fixes (nothing from SEMI's fix rounds lost).
-- [ ] A3. Remaining compile errors fixed against 26.2 sources (xplat, fabric, neoforge).
-- [ ] A4. JEMI updated for JEI 30.x API.
-- [ ] A5. Mod metadata: `fabric.mod.json` minecraft `~26.2-`; `neoforge.mods.toml` minecraft `[26.2,26.3)`, neoforge `[26.2,27)`.
+- [x] A1. Branch `26.2` created from `26.1`; versions bumped in `gradle.properties` / `fabric/build.gradle`.
+- [x] A2. Fork's 26.2 delta applied and reconciled with SEMI's 26.1 fixes (nothing from SEMI's fix rounds lost).
+- [x] A3. Remaining compile errors fixed against 26.2 sources (xplat, fabric, neoforge).
+- [x] A4. JEMI updated for JEI 30.x API.
+- [x] A5. Mod metadata: `fabric.mod.json` minecraft `~26.2-`; `neoforge.mods.toml` minecraft `[26.2,26.3)`, neoforge `[26.2,27)`.
 
 ### B. Completion proof
-- [ ] B1. `./gradlew :fabric:build :neoforge:build` succeeds.
-- [ ] B2. Fabric client: quick-play into the (upgraded) test world, one reload, index/search/recipe screen/tag icons/recipe screenshot, clean log.
-- [ ] B3. NeoForge client: same.
-- [ ] B4. Fabric + NeoForge dedicated servers load EMI (server side) without errors.
-- [ ] B5. No conflict markers / new stubs.
+- [x] B1. `./gradlew :fabric:build :neoforge:build` succeeds.
+- [x] B2. Fabric client: quick-play into the (upgraded) test world, one reload (3809 recipes), index/search/recipe screen/tag icons/recipe screenshot (`fabric/run/screenshots/emi/recipes/minecraft/crafting_table.png`), clean log; the user also played a session and confirmed it works.
+- [x] B3. NeoForge client: same (3805 recipes; sidebars/index at the right place with the `ScreenEvent.Render.Foreground` hook; `neoforge/run/screenshots/emi/recipes/minecraft/torch.png` produced).
+- [ ] B4. Fabric + NeoForge dedicated servers load EMI (server side) without errors (Fabric up to the EULA gate, see E4).
+- [x] B5. No conflict markers / new stubs.
 
 ### C. Quality
 - [ ] C1. Adversarial delta review (mixin targets vs 26.2 bytecode, JEMI vs JEI 30, recipe/sync paths, rendering), findings fixed.

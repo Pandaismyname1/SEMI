@@ -7,7 +7,7 @@ SEMI is a drop-in replacement for EMI. It keeps the `emi` mod id and the `dev.em
 ## Credits
 
 - **EMI** was created and is written by **[Emi (emilyploszaj)](https://github.com/emilyploszaj)** and the [EMI contributors](https://github.com/emilyploszaj/emi/graphs/contributors). All of the design, the features and almost all of the code in this repository are theirs, released under the [MIT License](LICENSE). SEMI would not exist without their work, and the original project remains at <https://github.com/emilyploszaj/emi>.
-- The Minecraft 26.1 port builds on the MIT-licensed community port by **[link-fgfgui](https://github.com/link-fgfgui/emi)**, merged with full commit attribution, which in turn drew on work by [Dabolus](https://github.com/Dabolus/MEMI) and others.
+- The Minecraft 26.1 and 26.2 ports build on the MIT-licensed community port by **[link-fgfgui](https://github.com/link-fgfgui/emi)**, merged with full commit attribution, which in turn drew on work by [Dabolus](https://github.com/Dabolus/MEMI) and others.
 - SEMI is maintained by **[Pandaismyname1](https://github.com/Pandaismyname1)**.
 
 Please report SEMI problems to [this repository's issue tracker](https://github.com/Pandaismyname1/SEMI/issues), not to the original EMI project.
@@ -26,13 +26,14 @@ This port was made with AI. AI (Claude, by Anthropic) was used to bring EMI back
 
 | Minecraft | Fabric | NeoForge | Branch |
 |-----------|--------|----------|--------|
+| 26.2      | yes    | yes      | `26.2` |
 | 26.1.x    | yes    | yes      | `26.1` |
 
-Minecraft 26.1 requires Java 25. Fabric builds need Fabric API; NeoForge builds need NeoForge 26.1.2 or newer.
+Minecraft 26.1 and 26.2 require Java 25. Fabric builds need Fabric API; NeoForge builds need NeoForge 26.1.2 or newer (26.1) or NeoForge 26.2.0 or newer (26.2). Each Minecraft version has its own branch and its own release, for example `1.1.24+26.1.2` for 26.1.2 and `1.1.24+26.2` for 26.2.
 
 ## Developers
 
-SEMI keeps EMI's API. To depend on it, use the Modrinth Maven (available once versions are published) and the `emi_version` you need, for example `1.1.24+26.1.2`:
+SEMI keeps EMI's API. To depend on it, use the Modrinth Maven (available once versions are published) and the `emi_version` you need, for example `1.1.24+26.2`:
 
 ```gradle
 repositories {
@@ -60,7 +61,7 @@ dependencies {
 }
 ```
 
-Building from source: `./gradlew :fabric:build :neoforge:build` with JDK 25. The port notes, contract and decision log for the 26.1 port live in [`docs/`](docs/).
+Building from source: `./gradlew :fabric:build :neoforge:build` with JDK 25. The port notes, contract and decision log for each port live in [`docs/`](docs/).
 
 ---
 
