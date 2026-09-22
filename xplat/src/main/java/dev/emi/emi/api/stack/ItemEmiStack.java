@@ -6,7 +6,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTextTooltip;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.component.DataComponentType;
@@ -28,6 +27,7 @@ import dev.emi.emi.api.render.EmiRender;
 import dev.emi.emi.platform.EmiAgnos;
 import dev.emi.emi.runtime.EmiDrawContext;
 import dev.emi.emi.screen.StackBatcher.Batchable;
+import dev.emi.emi.screen.StackBatcher.EmiBufferSource;
 import dev.emi.emi.screen.tooltip.EmiTextTooltipWrapper;
 
 @ApiStatus.Internal
@@ -95,7 +95,7 @@ public class ItemEmiStack extends EmiStack implements Batchable {
 		EmiDrawContext context = EmiDrawContext.wrap(draw);
 		ItemStack stack = getItemStack();
 		if ((flags & RENDER_ICON) != 0) {
-			Minecraft.getInstance().gameRenderer.getLighting().setupFor(Lighting.Entry.ITEMS_3D);
+			Minecraft.getInstance().gameRenderer.lighting().setupFor(Lighting.Entry.ITEMS_3D);
 			draw.fakeItem(stack, x, y);
 			draw.itemDecorations(client.font, stack, x, y, "");
 		}
@@ -142,7 +142,7 @@ public class ItemEmiStack extends EmiStack implements Batchable {
 	 * itself unbatchable, but it must not draw a half rendered item if something ever does.
 	 */
 	@Override
-	public void renderForBatch(MultiBufferSource vcp, GuiGraphicsExtractor draw, int x, int y, int z, float delta) {
+	public void renderForBatch(EmiBufferSource vcp, GuiGraphicsExtractor draw, int x, int y, int z, float delta) {
 	}
 
 	@Override

@@ -14,7 +14,6 @@ import java.util.Optional;
 import java.util.Set;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.Sheets;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.client.renderer.rendertype.RenderType;
@@ -60,15 +59,25 @@ public class StackBatcher {
 		}
 	}
 
+	/**
+	 * Minimal stand-in for {@code MultiBufferSource}, which 26.2 removed along with the
+	 * immediate-mode buffer pipeline (rendering now goes through {@code SubmitNodeCollector} /
+	 * {@code FeatureRenderDispatcher}). It only exists to keep the batched rendering API surface
+	 * compiling: {@link #isEnabled()} is hard-false, so nothing is ever handed one of these.
+	 */
+	public interface EmiBufferSource {
+		VertexConsumer getBuffer(RenderType renderType);
+	}
+
 	public interface Batchable {
 		boolean isSideLit();
 		boolean isUnbatchable();
 		void setUnbatchable();
-		void renderForBatch(MultiBufferSource vcp, GuiGraphicsExtractor draw, int x, int y, int z, float delta);
+		void renderForBatch(EmiBufferSource vcp, GuiGraphicsExtractor draw, int x, int y, int z, float delta);
 	}
 
 	private final BatcherVertexConsumerProvider imm;
-	private final MultiBufferSource unlitFacade;
+	private final EmiBufferSource unlitFacade;
 	private final Map<RenderType, MeshData> buffers = new LinkedHashMap<>();
 	private final Set<TextureAtlasSprite> spritesToUpdate = Sets.newHashSet();
 	private boolean populated = false;
@@ -80,10 +89,12 @@ public class StackBatcher {
 	public static final List<RenderType> EXTRA_RENDER_LAYERS = Lists.newArrayList();
 
 	/**
-	 * Always false on 26.1. EMI's batcher replayed an item's baked quads into a shared mesh, which
+	 * Always false since 26.1. EMI's batcher replayed an item's baked quads into a shared mesh, which
 	 * the {@code ItemStackRenderState} pipeline no longer allows, and vanilla's {@code GuiRenderer}
-	 * caches GUI items in its own {@code GuiItemAtlas} anyway. The config option is kept so that
-	 * existing config files stay valid; see D7 in the port decision log.
+	 * caches GUI items in its own {@code GuiItemAtlas} anyway. 26.2 went further and removed
+	 * {@code MultiBufferSource} and {@code RenderType#draw(MeshData)} outright, so there is no longer
+	 * any way to replay a mesh here at all. The config option is kept so that existing config files
+	 * stay valid; see D7 in the port decision log.
 	 */
 	public static boolean isEnabled() {
 		return false;
@@ -91,15 +102,15 @@ public class StackBatcher {
 
 	public StackBatcher() {
 		// Every sidebar ScreenSpace owns a batcher, and the ByteBufferBuilders below are several
-		// megabytes of off-heap memory that is never freed. Since nothing is ever batched on 26.1,
-		// skip the allocation entirely and leave this instance inert.
+		// megabytes of off-heap memory that is never freed. Since nothing is ever batched, skip the
+		// allocation entirely and leave this instance inert.
 		if (!isEnabled()) {
 			imm = null;
 			unlitFacade = null;
 			return;
 		}
 		Map<RenderType, ByteBufferBuilder> buffers = new HashMap<>();
-		assign(buffers, Sheets.cutoutBlockSheet());
+		assign(buffers, Sheets.cutoutBlockItemSheet());
 		assign(buffers, Sheets.translucentItemSheet());
 		assign(buffers, RenderTypes.glint());
 		assign(buffers, RenderTypes.entityGlint());
@@ -111,7 +122,7 @@ public class StackBatcher {
 	}
 
 	private void assign(Map<RenderType, ByteBufferBuilder> buffers, RenderType layer) {
-		buffers.put(layer, new ByteBufferBuilder(layer.bufferSize()));
+		buffers.put(layer, new ByteBufferBuilder(RenderType.BIG_BUFFER_SIZE));
 	}
 
 	public boolean isPopulated() {
@@ -202,13 +213,14 @@ public class StackBatcher {
 			bake();
 			populated = true;
 		}
-		Minecraft.getInstance().gameRenderer.getLighting().setupFor(Lighting.Entry.ITEMS_3D);
+		Minecraft.getInstance().gameRenderer.lighting().setupFor(Lighting.Entry.ITEMS_3D);
 		Matrix4fStack modelViewStack = RenderSystem.getModelViewStack();
 		modelViewStack.pushMatrix();
 		modelViewStack.translate(x, y, 0);
-		for (Map.Entry<RenderType, MeshData> en : buffers.entrySet()) {
-			en.getKey().draw(en.getValue());
-		}
+		// Unreachable: draw() returns above unless isEnabled(), and 26.2 removed
+		// RenderType#draw(MeshData) with no replacement that takes a bare mesh.
+		buffers.values().forEach(MeshData::close);
+		buffers.clear();
 		modelViewStack.popMatrix();
 	}
 	
@@ -267,7 +279,7 @@ public class StackBatcher {
 		}
 	}
 
-	private static class BatcherVertexConsumerProvider implements MultiBufferSource {
+	private static class BatcherVertexConsumerProvider implements EmiBufferSource {
 		protected final ByteBufferBuilder fallbackBuffer;
 		protected final Map<RenderType, ByteBufferBuilder> layerBuffers;
 		protected final Map<RenderType, BufferBuilder> pending = new HashMap<>();
@@ -285,12 +297,12 @@ public class StackBatcher {
 			if (bufferBuilder == null) {
 				ByteBufferBuilder allocator = this.layerBuffers.get(renderLayer);
 				if (allocator != null) {
-					bufferBuilder = new BufferBuilder(allocator, renderLayer.mode(), renderLayer.format());
+					bufferBuilder = new BufferBuilder(allocator, renderLayer.primitiveTopology(), renderLayer.format());
 				} else {
 					if (this.currentLayer != null) {
 						this.draw(this.currentLayer);
 					}
-					bufferBuilder = new BufferBuilder(this.fallbackBuffer, renderLayer.mode(), renderLayer.format());
+					bufferBuilder = new BufferBuilder(this.fallbackBuffer, renderLayer.primitiveTopology(), renderLayer.format());
 					this.currentLayer = renderLayer;
 				}
 
@@ -327,7 +339,8 @@ public class StackBatcher {
 			MeshData buffer = builder.build();
 			if (buffer != null) {
 				buffer.sortQuads(bufferAllocator, VertexSorting.ORTHOGRAPHIC_Z);
-				layer.draw(buffer);
+				// See draw(): RenderType#draw(MeshData) is gone in 26.2 and this path is dead.
+				buffer.close();
 			}
 			if (isSameAsCurrentLayer) {
 				this.currentLayer = null;
@@ -339,11 +352,11 @@ public class StackBatcher {
 		}
 	}
 
-	private static class UnlitFacade implements MultiBufferSource {
-		private final MultiBufferSource delegate;
+	private static class UnlitFacade implements EmiBufferSource {
+		private final EmiBufferSource delegate;
 		private final IdentityHashMap<VertexConsumer, VertexConsumer> cache = new IdentityHashMap<>();
 
-		public UnlitFacade(MultiBufferSource delegate) {
+		public UnlitFacade(EmiBufferSource delegate) {
 			this.delegate = delegate;
 		}
 

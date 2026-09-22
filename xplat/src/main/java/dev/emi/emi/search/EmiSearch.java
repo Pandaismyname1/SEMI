@@ -7,6 +7,7 @@ import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.minecraft.client.resources.language.I18n;
+import net.minecraft.locale.Language;
 import net.minecraft.client.searchtree.SuffixArray;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
@@ -98,7 +99,7 @@ public class EmiSearch {
 		for (Supplier<EmiAlias> supplier : EmiData.aliases) {
 			EmiAlias alias = supplier.get();
 			for (String key : alias.keys()) {
-				if (!I18n.exists(key)) {
+				if (!Language.getInstance().has(key)) {
 					EmiReloadLog.warn("Untranslated alias " + key);
 				}
 				String text = I18n.get(key).toLowerCase();

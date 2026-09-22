@@ -1,7 +1,5 @@
 package dev.emi.emi;
 
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.serialization.DynamicOps;
 import dev.emi.emi.api.stack.Comparison;
 import dev.emi.emi.mixin.accessor.SmithingTransformRecipeAccessor;
@@ -10,7 +8,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Button.OnPress;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.commands.arguments.item.ItemParser;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Registry;
@@ -119,11 +116,6 @@ public final class EmiPort {
 		} catch(Exception e) {
 			return false;
 		}
-	}
-
-	public static void draw(BufferBuilder bufferBuilder, RenderType renderType) {
-		MeshData meshData = bufferBuilder.buildOrThrow();
-		renderType.draw(meshData);
 	}
 
 	public static int getGuiScale(Minecraft client) {
