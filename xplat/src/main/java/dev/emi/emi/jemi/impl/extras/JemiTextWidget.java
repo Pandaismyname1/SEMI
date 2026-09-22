@@ -17,9 +17,11 @@ import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
 
 public class JemiTextWidget extends JemiPlaceable<ITextWidget> implements ITextWidget {
-	public int color = 0xffffffff;
-	public boolean shadow = true;
-	public int spacing = 0;
+	// Defaults match JEI's TextWidget: no colour override (its RECIPE_TEXT_WIDGET_TEXT
+	// default is 0xFF000000), no shadow, and a line spacing of 2.
+	public int color = 0xFF000000;
+	public boolean shadow = false;
+	public int spacing = 2;
 	public HorizontalAlignment horizontal = HorizontalAlignment.LEFT;
 	public VerticalAlignment vertical = VerticalAlignment.TOP;
 	public List<FormattedText> text;
@@ -30,9 +32,14 @@ public class JemiTextWidget extends JemiPlaceable<ITextWidget> implements ITextW
 	}
 
 	/**
-	 * Lays the text out the way JEI's own {@code TextWidget} does and emits one EMI text
-	 * widget per line: lines are wrapped to {@code width}, clipped to the number that fit
-	 * in {@code height}, then aligned within the widget's area.
+	 * Lays the text out roughly the way JEI's own {@code TextWidget} does and emits one
+	 * EMI text widget per line: lines are wrapped to {@code width}, clipped to the number
+	 * that fit in {@code height}, then aligned within the widget's area.
+	 *
+	 * <p>The wrapping itself is not identical. JEI wraps with {@code StringUtil.splitLines},
+	 * which hyphenates over-long words and reports whether the result was truncated so it
+	 * can attach a tooltip showing the full text; EMI uses plain {@link Font#split}, so
+	 * long words are broken without a hyphen and nothing is added for clipped lines.
 	 */
 	public void addWidgets(WidgetHolder holder) {
 		if (width > 0 && height > 0 && !text.isEmpty()) {

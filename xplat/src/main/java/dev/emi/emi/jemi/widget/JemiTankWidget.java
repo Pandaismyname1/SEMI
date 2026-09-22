@@ -15,14 +15,17 @@ public class JemiTankWidget extends TankWidget {
 	private final JemiSlotWidget jsw;
 
 	public JemiTankWidget(JemiRecipeSlot slot, EmiRecipe recipe) {
-		super(slot.stack, slot.x - 1, slot.y - 1, slot.tankInfo.width() + 2, slot.tankInfo.height() + 2, slot.tankInfo.capacity());
+		super(JemiSlotWidget.displayedStack(slot), slot.x - 1, slot.y - 1, slot.tankInfo.width() + 2, slot.tankInfo.height() + 2, slot.tankInfo.capacity());
 		this.slot = slot;
-		slot.widget = this;
 		if (slot.getRole() == RecipeIngredientRole.OUTPUT) {
 			this.recipeContext(recipe);
 		}
 		this.drawBack(false);
 		this.jsw = new JemiSlotWidget(slot, recipe);
+		// JemiSlotWidget's constructor also claims slot.widget, so this has to come
+		// last: the tank is the widget EMI actually renders, and it is the one whose
+		// bounds getAreaIncludingBackground should report.
+		slot.widget = this;
 	}
 
 	@Override

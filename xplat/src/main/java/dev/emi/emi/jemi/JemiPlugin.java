@@ -86,7 +86,9 @@ import net.minecraft.world.level.material.Fluid;
 public class JemiPlugin implements IModPlugin, EmiPlugin {
 	private static final Map<EmiRecipeCategory, IRecipeCategory<?>> CATEGORY_MAP = Maps.newHashMap();
 	private static ISubtypeManager subtypeManager;
-	public static IJeiRuntime runtime;
+	// Spin-read from the reload thread while the client thread publishes it in
+	// onRuntimeAvailable/onRuntimeUnavailable, so the field has to be volatile.
+	public static volatile IJeiRuntime runtime;
 	public static BiPredicate<IIngredientTypeWithSubtypes<? extends Object, ? extends Object>, Object> hasSubtype = (a, b) -> true;
 
 	@Override
@@ -325,7 +327,10 @@ public class JemiPlugin implements IModPlugin, EmiPlugin {
 						EmiIngredient stack = acceptor.build();
 						if (acceptor.role == RecipeIngredientRole.INPUT) {
 							inputs.add(stack);
-						} else if (acceptor.role == RecipeIngredientRole.RENDER_ONLY) {
+						} else if (acceptor.role == RecipeIngredientRole.CRAFTING_STATION) {
+							// JEI 29 renamed CATALYST to CRAFTING_STATION; upstream folded
+							// catalysts into the crafting inputs here. RENDER_ONLY is purely
+							// decorative and is deliberately ignored.
 							inputs.add(stack);
 						} else if (acceptor.role == RecipeIngredientRole.OUTPUT) {
 							outputs.addAll(stack.getEmiStacks());

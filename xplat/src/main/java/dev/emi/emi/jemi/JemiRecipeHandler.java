@@ -49,6 +49,15 @@ public class JemiRecipeHandler<T extends AbstractContainerMenu, R> implements Em
 	private final IRecipeType<R> type;
 	private final boolean isUniversal;
 	public IRecipeTransferHandler<T, R> handler;
+	// Synthesizing a slots view runs the JEI category's setRecipe and coerces every
+	// stack, and render()/canCraft() ask for one every frame, so the last result is
+	// memoized. A handler is created per fill attempt, so a single-entry cache keyed
+	// on the recipe is enough. positioned records whether the cached view was built
+	// with EMI's laid-out widgets, since the fallback path reads slot positions off
+	// them; a view built without them must not be reused when they are available.
+	private EmiRecipe cachedViewRecipe;
+	private boolean cachedViewPositioned;
+	private JemiRecipeSlotsView cachedView;
 
 	public JemiRecipeHandler(IRecipeTransferHandler<T, R> handler) {
 		this.handler = handler;
@@ -117,7 +126,7 @@ public class JemiRecipeHandler<T extends AbstractContainerMenu, R> implements Em
 	public void render(EmiRecipe recipe, EmiCraftContext<T> context, List<Widget> widgets, GuiGraphicsExtractor raw) {
 		EmiDrawContext draw = EmiDrawContext.wrap(raw);
 		R rawRecipe = getRawRecipe(recipe);
-		JemiRecipeSlotsView view = createSlotsView(recipe, rawRecipe, type, widgets);
+		JemiRecipeSlotsView view = getSlotsView(recipe, rawRecipe, widgets);
 		IRecipeTransferError err = jeiCraft(recipe, context, false, view);
 		if (err != null) {
 			if (err.getType() == IRecipeTransferError.Type.COSMETIC) {
@@ -134,14 +143,18 @@ public class JemiRecipeHandler<T extends AbstractContainerMenu, R> implements Em
 						jrs.highlight = 0;
 					}
 				});
+				// The matrix is pushed outside the try so that a third-party error
+				// implementation which throws cannot leave the scale(0, 0) / translate
+				// behind on the stack for the rest of the frame.
+				draw.push();
 				try {
-					draw.push();
 					draw.matrices().translate(-100000, -100000);
 					draw.matrices().scale(0, 0);
 					err.showError(raw, EmiScreenManager.lastMouseX, EmiScreenManager.lastMouseY, view, 0, 0);
-					draw.pop();
 				} catch (Exception e) {
 					EmiLog.error("Error showing JEI transfer error", e);
+				} finally {
+					draw.pop();
 				}
 				view.getSlotViews().forEach(v -> {
 					if (v instanceof JemiRecipeSlot jrs && jrs.highlight != 0 && !jrs.isEmpty()) {
@@ -159,7 +172,7 @@ public class JemiRecipeHandler<T extends AbstractContainerMenu, R> implements Em
 			R rawRecipe = getRawRecipe(recipe);
 
 			if (view == null) {
-				view = createSlotsView(recipe, rawRecipe, type, List.of());
+				view = getSlotsView(recipe, rawRecipe, List.of());
 			}
 
 			if (view == null) {
@@ -182,6 +195,20 @@ public class JemiRecipeHandler<T extends AbstractContainerMenu, R> implements Em
 		return () -> IRecipeTransferError.Type.INTERNAL;
 	}
 
+	private JemiRecipeSlotsView getSlotsView(EmiRecipe recipe, R rawRecipe, List<Widget> widgets) {
+		boolean positioned = !widgets.isEmpty();
+		if (cachedView != null && cachedViewRecipe == recipe && (cachedViewPositioned || !positioned)) {
+			return cachedView;
+		}
+		JemiRecipeSlotsView view = createSlotsView(recipe, rawRecipe, type, widgets);
+		if (view != null) {
+			cachedViewRecipe = recipe;
+			cachedViewPositioned = positioned;
+			cachedView = view;
+		}
+		return view;
+	}
+
 	public static <R> JemiRecipeSlotsView createSlotsView(EmiRecipe recipe, R rawRecipe, IRecipeType<R> type, List<Widget> widgets) {
 		if (recipe instanceof JemiRecipe jr && jr.cachedSlotsView != null) {
 			if (jr.cachedSlotsView instanceof JemiRecipeSlotsView jrsv) {
@@ -196,7 +223,12 @@ public class JemiRecipeHandler<T extends AbstractContainerMenu, R> implements Em
 		} else {
 			category = JemiPlugin.getJeiCategory(recipe.getCategory());
 		}
-		if (rawRecipe != null && category != null) {
+		// getRawRecipe falls back to the id-matched vanilla RecipeHolder unconditionally,
+		// which is right for transferRecipe but not here: handing the category a recipe
+		// it does not accept only throws a ClassCastException out of setRecipe, once per
+		// frame. Only drive the category when the recipe really is of its type.
+		if (rawRecipe != null && category != null && type != null && type.getRecipeClass() != null
+				&& type.getRecipeClass().isInstance(rawRecipe)) {
 			try {
 				builder = new JemiRecipeLayoutBuilder();
 				@SuppressWarnings("unchecked")
@@ -258,7 +290,9 @@ public class JemiRecipeHandler<T extends AbstractContainerMenu, R> implements Em
 					addIngredients(builder, slotWidgets, List.of(EmiStack.EMPTY), RecipeIngredientRole.INPUT);
 				}
 			}
-			addIngredients(builder, slotWidgets, recipe.getCatalysts(), RecipeIngredientRole.RENDER_ONLY);
+			// CRAFTING_STATION is JEI 29's name for the old CATALYST role; RENDER_ONLY is
+			// decorative and would misrepresent these as scenery to the transfer handler.
+			addIngredients(builder, slotWidgets, recipe.getCatalysts(), RecipeIngredientRole.CRAFTING_STATION);
 		}
 
 		return new JemiRecipeSlotsView(builder.slots.stream().map(JemiRecipeSlot::new).toList());
