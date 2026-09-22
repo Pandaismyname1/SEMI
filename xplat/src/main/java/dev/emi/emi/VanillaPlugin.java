@@ -32,6 +32,7 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.core.Holder;
+import net.minecraft.core.Vec3i;
 import net.minecraft.core.component.BlockTransformer;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
@@ -92,6 +93,7 @@ import net.minecraft.world.level.levelgen.blockpredicates.BlockPredicate;
 import net.minecraft.world.level.levelgen.blockpredicates.CombiningPredicate;
 import net.minecraft.world.level.levelgen.blockpredicates.MatchingBlockTagPredicate;
 import net.minecraft.world.level.levelgen.blockpredicates.MatchingBlocksPredicate;
+import net.minecraft.world.level.levelgen.blockpredicates.StateTestingPredicate;
 import net.minecraft.world.level.levelgen.feature.stateproviders.BlockStateProvider;
 import net.minecraft.world.level.levelgen.feature.stateproviders.CopyPropertiesProvider;
 import net.minecraft.world.level.levelgen.feature.stateproviders.RuleBasedStateProvider;
@@ -138,6 +140,7 @@ import dev.emi.emi.mixin.accessor.DecoratedPotRecipeAccessor;
 import dev.emi.emi.mixin.accessor.HandledScreenAccessor;
 import dev.emi.emi.mixin.accessor.MatchingBlockTagPredicateAccessor;
 import dev.emi.emi.mixin.accessor.MatchingBlocksPredicateAccessor;
+import dev.emi.emi.mixin.accessor.StateTestingPredicateAccessor;
 import dev.emi.emi.platform.EmiAgnos;
 import dev.emi.emi.platform.EmiClient;
 import dev.emi.emi.recipe.EmiAnvilRecipe;
@@ -897,9 +900,20 @@ public class VanillaPlugin implements EmiPlugin {
 		} else if (predicate instanceof MatchingBlockTagPredicate matching) {
 			return EmiTagKey.of(((MatchingBlockTagPredicateAccessor) matching).emi$getTag()).getList();
 		} else if (predicate instanceof CombiningPredicate combining) {
-			// Compound checks describe the surroundings as well (tilling wants air above); the
-			// first entry that names blocks is the one testing the block being transformed.
-			for (BlockPredicate child : ((CombiningPredicateAccessor) combining).emi$getPredicates()) {
+			// Compound checks describe the surroundings as well: tilling wants air above, so the
+			// transformation applies to the child that looks at the block itself, offset zero.
+			// Only if none of those names blocks does the first child that does win, which is what
+			// this did before the offset was consulted.
+			List<BlockPredicate> children = ((CombiningPredicateAccessor) combining).emi$getPredicates();
+			for (BlockPredicate child : children) {
+				if (testsOwnPosition(child)) {
+					List<Block> blocks = getPredicateBlocks(child);
+					if (!blocks.isEmpty()) {
+						return blocks;
+					}
+				}
+			}
+			for (BlockPredicate child : children) {
 				List<Block> blocks = getPredicateBlocks(child);
 				if (!blocks.isEmpty()) {
 					return blocks;
@@ -907,6 +921,15 @@ public class VanillaPlugin implements EmiPlugin {
 			}
 		}
 		return List.of();
+	}
+
+	/** Whether a predicate looks at the block being transformed rather than at one of its neighbours. */
+	private static boolean testsOwnPosition(BlockPredicate predicate) {
+		if (predicate instanceof StateTestingPredicate state) {
+			return ((StateTestingPredicateAccessor) state).emi$getOffset().equals(Vec3i.ZERO);
+		}
+		// A nested combining predicate has no offset of its own; its children carry them.
+		return predicate instanceof CombiningPredicate;
 	}
 
 	@SuppressWarnings("unchecked")
