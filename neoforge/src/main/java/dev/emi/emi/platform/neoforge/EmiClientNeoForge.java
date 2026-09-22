@@ -13,7 +13,6 @@ import dev.emi.emi.screen.ConfigScreen;
 import dev.emi.emi.screen.EmiScreenBase;
 import dev.emi.emi.screen.EmiScreenManager;
 import dev.emi.emi.screen.StackBatcher;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.neoforged.api.distmarker.Dist;
@@ -23,7 +22,6 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.NeoForgeRenderTypes;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
-import net.neoforged.neoforge.client.event.ContainerScreenEvent;
 import net.neoforged.neoforge.client.event.AddClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RecipesReceivedEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
@@ -96,15 +94,23 @@ public class EmiClientNeoForge {
 		warnedAboutEmptyRecipes = false;
 	}
 
-	public static void renderScreenForeground(ContainerScreenEvent.Render.Foreground event) {
+	/**
+	 * 26.2 removed {@code ContainerScreenEvent} and folded its foreground event into
+	 * {@link ScreenEvent.Render.Foreground} (neoforged/NeoForge#3342), which now fires for every
+	 * screen, so container screens have to be picked out by hand. It is also posted from
+	 * {@code AbstractContainerScreen.extractRenderState} <i>after</i> {@code extractContents}
+	 * rather than from inside it, so the pose is no longer translated by the container's
+	 * {@code leftPos}/{@code topPos} and EMI must not translate it back.
+	 */
+	public static void renderScreenForeground(ScreenEvent.Render.Foreground event) {
+		if (!(event.getScreen() instanceof AbstractContainerScreen<?>)) {
+			return;
+		}
 		EmiDrawContext context = EmiDrawContext.wrap(event.getGuiGraphics());
-		AbstractContainerScreen<?> screen = event.getContainerScreen();
-		EmiScreenBase base = EmiScreenBase.of(screen);
+		EmiScreenBase base = EmiScreenBase.of(event.getScreen());
 		if (base != null) {
-			Minecraft client = Minecraft.getInstance();
 			context.push();
-			context.translate(-screen.getLeftPos(), -screen.getTopPos());
-			EmiScreenManager.render(context, event.getMouseX(), event.getMouseY(), client.getDeltaTracker().getGameTimeDeltaPartialTick(false));
+			EmiScreenManager.render(context, event.getMouseX(), event.getMouseY(), event.getPartialTick());
 			context.pop();
 		}
 	}
@@ -117,9 +123,8 @@ public class EmiClientNeoForge {
 		}
 		EmiScreenBase base = EmiScreenBase.of(screen);
 		if (base != null) {
-			Minecraft client = Minecraft.getInstance();
 			context.push();
-			EmiScreenManager.drawForeground(context, event.getMouseX(), event.getMouseY(), client.getDeltaTracker().getGameTimeDeltaPartialTick(false));
+			EmiScreenManager.drawForeground(context, event.getMouseX(), event.getMouseY(), event.getPartialTick());
 			context.pop();
 		}
 		context.flushDeferredTooltips();

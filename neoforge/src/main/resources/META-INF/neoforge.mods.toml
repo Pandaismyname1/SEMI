@@ -19,18 +19,18 @@ displayURL = "https://github.com/Pandaismyname1/SEMI"
 description = '''
 Seasonal EMI, an unofficial continuation of EMI: a featureful and accessible item and recipe viewer
 '''
-logoFile = "icon.png"
+iconFile = "icon.png"
 
 [[dependencies.emi]]
 modId="neoforge"
 type="REQUIRED"
-versionRange="[26.1,27)"
+versionRange="[26.2,27)"
 ordering="NONE"
 side="BOTH"
 
 [[dependencies.emi]]
 modId="minecraft"
 type="REQUIRED"
-versionRange="[26.1,26.2)"
+versionRange="[26.2,26.3)"
 ordering="NONE"
 side="BOTH"
