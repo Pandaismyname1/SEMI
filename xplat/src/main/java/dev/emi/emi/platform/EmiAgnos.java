@@ -141,12 +141,6 @@ public abstract class EmiAgnos {
 
 	protected abstract EmiStack createFluidStackAgnos(Object object);
 
-	public static boolean canBatch(ItemStack stack) {
-		return delegate.canBatchAgnos(stack);
-	}
-	
-	protected abstract boolean canBatchAgnos(ItemStack stack);
-
 	public static Map<Item, Integer> getFuelMap() {
 		return delegate.getFuelMapAgnos();
 	}

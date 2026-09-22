@@ -245,11 +245,6 @@ public class EmiAgnosFabric extends EmiAgnos {
 	}
 
 	@Override
-	protected boolean canBatchAgnos(ItemStack stack) {
-		return true;
-	}
-
-	@Override
 	protected Map<Item, Integer> getFuelMapAgnos() {
 		Object2IntMap<Item> fuelMap = new Object2IntOpenHashMap<>();
 		Minecraft client = Minecraft.getInstance();

@@ -1,9 +1,6 @@
 package dev.emi.emi.widget;
 
 import java.util.List;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.renderer.state.gui.GuiRenderState;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 import net.minecraft.resources.Identifier;
 import dev.emi.emi.EmiPort;
@@ -38,10 +35,10 @@ public class RecipeScreenshotButtonWidget extends RecipeButtonWidget {
 
 		int width = recipe.getDisplayWidth() + 8;
 		int height = recipe.getDisplayHeight() + 8;
-		Minecraft client = Minecraft.getInstance();
-		GuiGraphicsExtractor context = new GuiGraphicsExtractor(client, new GuiRenderState(), 0, 0);
+		// The recorder owns the context: on 26.1 the recipe has to be extracted into the render
+		// state the renderer that draws it is bound to, which is only known inside the render pass
 		EmiScreenshotRecorder.saveScreenshot("emi/recipes/" + path, width, height,
-			() -> EmiRenderHelper.renderRecipe(recipe, EmiDrawContext.wrap(context), 0, 0, false, -1));
+			context -> EmiRenderHelper.renderRecipe(recipe, EmiDrawContext.wrap(context), 0, 0, false, -1));
 
 		return true;
 	}

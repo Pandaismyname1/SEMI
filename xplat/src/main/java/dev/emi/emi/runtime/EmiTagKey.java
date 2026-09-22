@@ -124,10 +124,11 @@ public class EmiTagKey<T> {
 
 	public @Nullable Identifier getCustomModel() {
 		Identifier rid = this.id();
-		if (rid.getNamespace().equals("forge") && !EmiTags.MODELED_TAGS.containsKey(raw())) {
+		Map<TagKey<?>, Identifier> modeled = EmiTags.getModeledTags();
+		if (rid.getNamespace().equals("forge") && !modeled.containsKey(raw())) {
 			return EmiTagKey.of(registry(), EmiPort.id("c", rid.getPath())).getCustomModel();
 		}
-		return EmiTags.MODELED_TAGS.get(raw());
+		return modeled.get(raw());
 	}
 
 	public boolean hasCustomModel() {
