@@ -175,8 +175,17 @@ public class EmiTags {
 	 * The three lookups are always replaced together, so a reader can never pair one reload's
 	 * modeled tags with another reload's icons.
 	 */
-	private record Snapshot(Map<TagKey<?>, Identifier> modeled, Map<Identifier, List<TagIconLayer>> icons,
+	public record Snapshot(Map<TagKey<?>, Identifier> modeled, Map<Identifier, List<TagIconLayer>> icons,
 			Map<Identifier, Item> items) {
+	}
+
+	/**
+	 * The current snapshot, for callers that need several lookups to agree with each other: each
+	 * getter below reads the volatile field on its own, so a reload between two of them could
+	 * pair one reload's model id with another reload's icon.
+	 */
+	public static Snapshot snapshot() {
+		return SNAPSHOT;
 	}
 
 	/**
@@ -558,6 +567,7 @@ public class EmiTags {
 		} catch (Exception e) {
 			// A malformed .mcmeta only means the frame layout is unknown; drawing the whole
 			// texture is a better icon than dropping the tag's icon entirely
+			EmiReloadLog.warn("Could not read the animation metadata of tag icon texture " + texture + ", drawing the whole texture", e);
 			frameWidth = size[0];
 			frameHeight = size[1];
 		}

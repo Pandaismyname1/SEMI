@@ -108,8 +108,10 @@ public class TagEmiIngredient implements EmiIngredient {
 		EmiDrawContext context = EmiDrawContext.wrap(draw);
 
 		if ((flags & RENDER_ICON) != 0) {
-			Identifier model = tagKey.getCustomModel();
-			Item iconItem = EmiTags.getTagIconItem(model);
+			// One snapshot for all three lookups, so a reload in between cannot mix generations
+			EmiTags.Snapshot snapshot = EmiTags.snapshot();
+			Identifier model = tagKey.getCustomModel(snapshot);
+			Item iconItem = model == null ? null : snapshot.items().get(model);
 			if (iconItem != null) {
 				// The tag model only inherits an item or block model, so render that item rather
 				// than flattening its model down to a single face
@@ -119,7 +121,7 @@ public class TagEmiIngredient implements EmiIngredient {
 				iconStack.render(context.raw(), x, y, delta, -1 ^ RENDER_AMOUNT);
 			} else {
 				// Only looked up once the item lookup has missed; the two are mutually exclusive
-				List<EmiTags.TagIconLayer> icon = EmiTags.getTagIcon(model);
+				List<EmiTags.TagIconLayer> icon = model == null ? null : snapshot.icons().get(model);
 				if (icon != null) {
 					// 1.21 rendered a baked model here; 26.1 has no standalone model registry, so
 					// the tag model is resolved down to flat textures at reload and blitted over

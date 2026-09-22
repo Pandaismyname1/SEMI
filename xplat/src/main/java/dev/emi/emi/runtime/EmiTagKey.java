@@ -123,10 +123,15 @@ public class EmiTagKey<T> {
 	}
 
 	public @Nullable Identifier getCustomModel() {
+		return getCustomModel(EmiTags.snapshot());
+	}
+
+	/** Same as {@link #getCustomModel()} but against one snapshot, so callers can keep several lookups consistent. */
+	public @Nullable Identifier getCustomModel(EmiTags.Snapshot snapshot) {
 		Identifier rid = this.id();
-		Map<TagKey<?>, Identifier> modeled = EmiTags.getModeledTags();
+		Map<TagKey<?>, Identifier> modeled = snapshot.modeled();
 		if (rid.getNamespace().equals("forge") && !modeled.containsKey(raw())) {
-			return EmiTagKey.of(registry(), EmiPort.id("c", rid.getPath())).getCustomModel();
+			return EmiTagKey.of(registry(), EmiPort.id("c", rid.getPath())).getCustomModel(snapshot);
 		}
 		return modeled.get(raw());
 	}

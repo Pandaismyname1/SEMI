@@ -232,3 +232,12 @@ Each entry: decision, why, alternatives rejected, what a reviewer should double-
 ### D-F4b.6 The "no recipes synchronized" warning triggers on an empty map
 - **Decision:** `VanillaPlugin.register` warns when `registry.getRecipeMap()` is null *or* `map.values().isEmpty()`.
 - **Why:** both loaders now always install a map, falling back to `RecipeMap.EMPTY` on a server that does not synchronize, so the null case alone no longer describes "no recipes arrived".
+
+## D-F4c. Round-4 corrections (applied directly on `26.1`)
+- **NeoForge vanilla-packet fallback reverted (D-F4b.1 superseded).** The round-4 reviewer showed from the 26.1.2.109 bytecode that NeoForge's patched `ClientPacketListener.handleUpdateRecipes` calls `ClientHooks.handleUpdateRecipes`, which posts `RecipesReceivedEvent` inline with an empty map on every non-NeoForge connection (`CommonHooks.sendRecipes` only sends the payload to NeoForge connections). So `RecipesReceivedEvent` already fires exactly once per vanilla recipe packet on every server kind, and the countdown/mixin added in D-F4b.1 double-reported the recipes half and latched the reload mask at "recipes only" (subsequent `/reload`s would then reload on the tags packet with stale data). `ClientPacketListenerMixin`, the tick countdown and the second warning are gone; `emi-neoforge.mixins.json` is empty again; the existing "server did not synchronize any recipes" warning is the vanilla-server signal.
+- **Stonecutter:** the button index is resolved before the fill packet is sent, so an unresolvable recipe is refused with no side effects instead of moving the item and then reporting failure.
+- **Tag icons:** `EmiTags.snapshot()` + `EmiTagKey.getCustomModel(Snapshot)` let `TagEmiIngredient.render` do all three lookups against one snapshot; a malformed `.mcmeta` is logged once via `EmiReloadLog`.
+- **JEMI:** an unregistered recipe type no longer blocks `setRecipe` (`isOfHolderType` allows a null registry key); `onRuntimeUnavailable` clears the slots-view caches; the scroll-grid list survives a throwing `createRecipeExtras`.
+- **Screenshots:** `useUiLightmap` is restored to its previous value rather than `false`.
+- **Left as noted (MINOR/INFO in round 4):** `consumePendingRecipeMap` is a two-step read on a volatile (client thread only); the stonecutter warn-once flag is process-wide; `FillRecipeC2SPacket` rejects indices above 65536 (comment corrected); `VanillaPlugin`'s empty-map warning also shows on a server that ships no recipes at all.
+

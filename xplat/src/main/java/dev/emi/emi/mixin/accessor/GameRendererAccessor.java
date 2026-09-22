@@ -32,4 +32,7 @@ public interface GameRendererAccessor {
 	 */
 	@Accessor("useUiLightmap")
 	void emi$setUseUiLightmap(boolean useUiLightmap);
+
+	@Accessor("useUiLightmap")
+	boolean emi$getUseUiLightmap();
 }

@@ -125,6 +125,8 @@ public class JemiPlugin implements IModPlugin, EmiPlugin {
 	@Override
 	public void onRuntimeUnavailable() {
 		JemiPlugin.runtime = null;
+		// Cached slot views hold this runtime's categories and renderers
+		JemiRecipeHandler.clearCaches();
 	}
 
 	@Override

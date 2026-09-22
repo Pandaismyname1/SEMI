@@ -107,6 +107,7 @@ public class EmiScreenshotRecorder {
 		boolean guiScaleChanged = windowGuiScale != scale;
 		GpuBufferSlice backupProj = RenderSystem.getProjectionMatrixBuffer();
 		ProjectionType backupProjType = RenderSystem.getProjectionType();
+		boolean previousUiLightmap = ((GameRendererAccessor) gameRenderer).emi$getUseUiLightmap();
 		boolean rendered = false;
 		try {
 			state.reset();
@@ -137,7 +138,7 @@ public class EmiScreenshotRecorder {
 		} catch (Throwable t) {
 			EmiLog.error("Failed to render recipe screenshot", t);
 		} finally {
-			((GameRendererAccessor) gameRenderer).emi$setUseUiLightmap(false);
+			((GameRendererAccessor) gameRenderer).emi$setUseUiLightmap(previousUiLightmap);
 			((MinecraftAccessor) client).emi$setMainRenderTarget(mainTarget);
 			window.width = windowWidth;
 			window.height = windowHeight;

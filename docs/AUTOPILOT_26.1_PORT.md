@@ -39,13 +39,13 @@ Merge the MIT-licensed community port `link-fgfgui/emi@26.1` (remote `linkfgfgui
 ### D. Quality (multi-agent adversarial review, Opus)
 - [x] D1. Review round 1: merge-resolution correctness (upstream delta fully re-applied, nothing from the fork lost), findings verified + fixed (branch fix/f2-recipes, fix/f3-jemi).
 - [x] D2. Review round: port regressions vs upstream 1.21 behaviour (dropped features, API breaks, mixin coverage), findings verified + fixed (33-finding audit + JEI-adapter review + runtime/mixin review; fixes in fix/f1-rendering, fix/f2-recipes, fix/f3-jemi and 476e9745).
-- [ ] D3. Two consecutive clean review rounds.
+- [ ] D3. Two consecutive clean review rounds: NOT reached. Four rounds ran (each with findings, all fixed); the final round-4 corrections were verified by build and client runs only. See the report.
 
 ### E. Delivery
 - [x] E1. Commits on `26.1` with attribution preserved (fork commits kept via a real merge).
 - [x] E2. `CHANGELOG.md` entry for the port.
 - [ ] E3. Push + PR: BLOCKED, needs the user. `origin` is the upstream maintainer's repo (no push rights, and D-PR forbids it) and the GitHub account `Pandaismyname1` has no fork of `emi`, so there is no remote the user owns. The branch is local only.
-- [ ] E4. Morning report.
+- [x] E4. Morning report: `docs/AUTOPILOT_26.1_REPORT.md` (and the final chat message).
 
 ### F. Regression fix round (from the fork-port audit, see decisions D7+)
 - [x] F1. Rendering/UI regressions fixed: tag icons (custom tag models), global tint (BoM tree colours, jeb_ search bar), text alpha, screenshot transparency, top-effects text, deferred-tooltip robustness, loader fluid sprite APIs, `EmiTooltipComponent.getWidth` API restored.

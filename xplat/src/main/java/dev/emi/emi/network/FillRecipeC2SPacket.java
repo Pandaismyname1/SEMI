@@ -206,7 +206,8 @@ public class FillRecipeC2SPacket implements EmiPacket {
 				throw new DecoderException("EMI fill recipe packet declared an input slot range of "
 					+ low + ".." + high + ", which is outside of 0.." + MAX_SLOTS);
 			}
-			// Large indices stay legal, but the expansion of every range together does not.
+			// Indices up to MAX_SLOTS are legal; the expansion of every range together is bounded
+			// separately so a tiny packet cannot allocate tens of thousands of boxed ints.
 			if ((long) list.size() + (high - low + 1) > MAX_EXPANDED_SLOTS) {
 				throw new DecoderException("EMI fill recipe packet declared input slot ranges that"
 					+ " expand to more than " + MAX_EXPANDED_SLOTS + " slots");

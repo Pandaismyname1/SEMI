@@ -339,7 +339,10 @@ public class JemiRecipeHandler<T extends AbstractContainerMenu, R> implements Em
 	private static boolean isOfHolderType(IRecipeType<?> type, Object rawRecipe) {
 		try {
 			if (type instanceof IRecipeHolderType<?> && rawRecipe instanceof RecipeHolder<?> holder) {
-				return type.getUid().equals(BuiltInRegistries.RECIPE_TYPE.getKey(holder.value().getType()));
+				// An unregistered recipe type cannot be compared; let the category try and rely on
+				// the caller's catch (and FAILED_VIEWS) if it turns out to be the wrong one
+				Identifier holderKey = BuiltInRegistries.RECIPE_TYPE.getKey(holder.value().getType());
+				return holderKey == null || type.getUid().equals(holderKey);
 			}
 		} catch (Exception e) {
 			// A type that cannot even say what it is does not get to drive a category.

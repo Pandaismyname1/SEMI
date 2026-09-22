@@ -146,11 +146,12 @@ public class JemiRecipe<T> implements EmiRecipe {
 		if (opt.isPresent()) {
 			widgets.add(new JemiWidget(0, 0, getDisplayWidth(), getDisplayHeight(), opt.get()));
 		}
-		List<JemiScrollGridWidget> scrollGrids = List.of();
+		// Declared outside the try: a grid registered before createRecipeExtras throws has already
+		// repositioned the visible slots, so its clipping must still be honoured below
+		JemiRecipeExtrasBuilder extras = new JemiRecipeExtrasBuilder(new JemiRecipeSlotDrawablesView(slots));
+		List<JemiScrollGridWidget> scrollGrids = extras.scrollGrids;
 		try {
-			JemiRecipeExtrasBuilder extras = new JemiRecipeExtrasBuilder(new JemiRecipeSlotDrawablesView(slots));
 			category.createRecipeExtras(extras, recipe, JemiPlugin.runtime.getJeiHelpers().getFocusFactory().getEmptyFocusGroup());
-			scrollGrids = extras.scrollGrids;
 			for (JemiWidgetBuilder b : extras.widgets) {
 				b.addWidgets(widgets);
 			}

@@ -63,25 +63,27 @@ public class StonecuttingRecipeHandler implements StandardRecipeHandler<Stonecut
 			return false;
 		}
 		ItemStack input = stacks.get(0);
-		boolean action = StandardRecipeHandler.super.craft(recipe, context);
 		Minecraft client = Minecraft.getInstance();
-		StonecutterMenu sh = context.getScreenHandler();
+		// Resolve the index before touching any slot: findRecipeIndex only reads the recipe and
+		// the synced stonecutter list, so an unresolvable recipe can be refused with no side effects
 		int index = findRecipeIndex(recipe, input, client);
-		if (index >= 0) {
-			client.gameMode.handleInventoryButtonClick(sh.containerId, index);
-			if (context.getDestination() == EmiCraftContext.Destination.CURSOR) {
-				client.gameMode.handleContainerInput(sh.containerId, 1, 0, ContainerInput.PICKUP, client.player);
-			} else if (context.getDestination() == EmiCraftContext.Destination.INVENTORY) {
-				client.gameMode.handleContainerInput(sh.containerId, 1, 0, ContainerInput.QUICK_MOVE, client.player);
+		if (index < 0) {
+			if (!warnedAboutUnresolvedIndex) {
+				warnedAboutUnresolvedIndex = true;
+				EmiLog.warn("Could not resolve a stonecutter button index for the crafted recipe, so"
+					+ " nothing was crafted. Further occurrences will not be logged.");
 			}
-		} else if (action && !warnedAboutUnresolvedIndex) {
-			warnedAboutUnresolvedIndex = true;
-			EmiLog.warn("Could not resolve a stonecutter button index for the crafted recipe, so no"
-				+ " recipe was selected. Further occurrences will not be logged.");
+			return false;
 		}
-		// The item was moved into the slot, but without a selection nothing is crafted, so this is
-		// not a successful craft.
-		return action && index >= 0;
+		boolean action = StandardRecipeHandler.super.craft(recipe, context);
+		StonecutterMenu sh = context.getScreenHandler();
+		client.gameMode.handleInventoryButtonClick(sh.containerId, index);
+		if (context.getDestination() == EmiCraftContext.Destination.CURSOR) {
+			client.gameMode.handleContainerInput(sh.containerId, 1, 0, ContainerInput.PICKUP, client.player);
+		} else if (context.getDestination() == EmiCraftContext.Destination.INVENTORY) {
+			client.gameMode.handleContainerInput(sh.containerId, 1, 0, ContainerInput.QUICK_MOVE, client.player);
+		}
+		return action;
 	}
 
 	/**
