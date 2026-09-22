@@ -14,24 +14,24 @@ Merge the MIT-licensed community port `link-fgfgui/emi@26.1` (remote `linkfgfgui
 ## Checklist (definition of done)
 ### A. Branch + merge
 - [x] A1. Branch `26.1` created from `origin/1.21` (81f6453c).
-- [ ] A2. `linkfgfgui/26.1` (63e8aef1) merged; all 34 UU + 5 AA conflicts resolved (fork side wins for mojmap; upstream semantics re-applied).
-- [ ] A3. Upstream delta re-ported on mojmap: 81f6453c "Introduce some abstractions" (ProxyRecipeManager, EmiDrawContext.translate, EmiPort.playClickSound), 4c22e3b0 tag-query registries, 5b49fb13 display-all-recipes keybind, 92038d8e displayRecipesForWorkstation, 94c6ad88/1c553693/c0b57231 lang fixes, ec96b21a README maven URL.
-- [ ] A4. `EmiPort.getId/getRecipe` + `EmiRecipes.recipeIds` removed in favour of `ProxyRecipeManager` (no duplicate id maps left).
+- [x] A2. `linkfgfgui/26.1` (63e8aef1) merged; all 34 UU + 5 AA conflicts resolved (fork side wins for mojmap; upstream semantics re-applied).
+- [x] A3. Upstream delta re-ported on mojmap: 81f6453c "Introduce some abstractions" (ProxyRecipeManager, EmiDrawContext.translate, EmiPort.playClickSound), 4c22e3b0 tag-query registries, 5b49fb13 display-all-recipes keybind, 92038d8e displayRecipesForWorkstation, 94c6ad88/1c553693/c0b57231 lang fixes, ec96b21a README maven URL.
+- [x] A4. `EmiPort.getId/getRecipe` + `EmiRecipes.recipeIds` removed in favour of `ProxyRecipeManager` (no duplicate id maps left).
 
 ### B. Repo hygiene / toolchain
-- [ ] B1. Version scheme restored to upstream convention (`-SNAPSHOT` unless `RELEASE`), `mod_version` unchanged (1.1.24).
-- [ ] B2. Fork-specific dev `localRuntime` mod lists (cursemaven/modrinth test mods) removed from fabric/neoforge build files.
-- [ ] B3. GitHub workflows: upstream `build.yml`/`release.yml` kept, JDK 25 + temurin; the fork's auto-release-to-their-CurseForge workflow is NOT carried over.
-- [ ] B4. Dependencies bumped to latest 26.1.2-compatible (NeoForge 26.1.2.x latest, Fabric API latest +26.1.2, Fabric Loader latest stable, JEI latest that compiles), verified by build.
-- [ ] B5. `.gitignore`, README developer section updated for 26.1 (no remap: `compileOnly`/`localRuntime`).
-- [ ] B6. `xplat/mojmap` subproject removed (everything is mojmap now); publication artifactIds documented.
-- [ ] B7. `neoforge.mods.toml` neoforge dependency range `[26.1,)`; `fabric.mod.json` deps updated for Fabric API on 26.1 (no `fabric` mod id).
+- [x] B1. Version scheme restored to upstream convention (`-SNAPSHOT` unless `RELEASE`), `mod_version` unchanged (1.1.24).
+- [x] B2. Fork-specific dev `localRuntime` mod lists (cursemaven/modrinth test mods) removed from fabric/neoforge build files.
+- [x] B3. GitHub workflows: upstream `build.yml`/`release.yml` kept, JDK 25 + temurin; the fork's auto-release-to-their-CurseForge workflow is NOT carried over.
+- [x] B4. Dependencies bumped to latest 26.1.2-compatible (NeoForge 26.1.2.x latest, Fabric API latest +26.1.2, Fabric Loader latest stable, JEI latest that compiles), verified by build.
+- [x] B5. `.gitignore`, README developer section updated for 26.1 (no remap: `compileOnly`/`localRuntime`).
+- [x] B6. `xplat/mojmap` subproject removed (everything is mojmap now); publication artifactIds documented.
+- [x] B7. `neoforge.mods.toml` neoforge dependency range `[26.1,)`; `fabric.mod.json` deps updated for Fabric API on 26.1 (no `fabric` mod id).
 
 ### C. Completion proof
-- [ ] C1. `./gradlew :fabric:build` succeeds (JDK 25).
-- [ ] C2. `./gradlew :neoforge:build` succeeds (JDK 25).
+- [x] C1. `./gradlew :fabric:build` succeeds (JDK 25).
+- [x] C2. `./gradlew :neoforge:build` succeeds (JDK 25).
 - [ ] C3. No leftover conflict markers, no `TODO(port)` or stubbed functionality introduced by this branch.
-- [ ] C4. Fabric client launches (runClient), reaches a world, EMI index/UI renders in the inventory (screenshot), log free of mixin apply failures / EMI errors.
+- [x] C4. Fabric client launches (runClient), reaches a world, EMI index/UI renders in the inventory (screenshot), log free of mixin apply failures / EMI errors. Verified 2026-09-22: quick-play into saved world, 3731 recipes baked in 495 ms, index/favorites/search/recipe screen/crafting recipe all rendered, clean disconnect.
 - [ ] C5. NeoForge client launches likewise (screenshot, clean log).
 - [ ] C6. Fabric dedicated server (runServer) starts and stops cleanly with EMI.
 - [ ] C7. NeoForge dedicated server (runServer) starts and stops cleanly with EMI.
@@ -46,6 +46,11 @@ Merge the MIT-licensed community port `link-fgfgui/emi@26.1` (remote `linkfgfgui
 - [ ] E2. `CHANGELOG.md` entry for the port.
 - [ ] E3. Push + PR (only to a remote the user owns; never to `emilyploszaj/emi` upstream, see D-PR).
 - [ ] E4. Morning report.
+
+### F. Regression fix round (from the fork-port audit, see decisions D7+)
+- [ ] F1. Rendering/UI regressions fixed: tag icons (custom tag models), global tint (BoM tree colours, jeb_ search bar), text alpha, screenshot transparency, top-effects text, deferred-tooltip robustness, loader fluid sprite APIs, `EmiTooltipComponent.getWidth` API restored.
+- [ ] F2. Recipe/sync regressions fixed: cheat `give` keeps components + namespace, JEMI info recipes registered synchronously, suspicious stew / map cloning recipes, missing-recipe-map warning, recipe-serializer sync load order, `dyeable` tag, effect-screen base class, NeoForge double reload, AE2 hack removed, JEMI display overrides.
+- [ ] F3. Batched renderer: decision recorded (superseded by vanilla GUI item atlas or flagged as perf regression).
 
 ## Known bounds / not in scope
 - Legacy `forge/` (1.20.4 Forge) module stays excluded from `settings.gradle`, untouched beyond merge fallout.

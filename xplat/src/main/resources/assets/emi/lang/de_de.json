@@ -19,7 +19,7 @@
   "config.emi.tooltip.binds.favorite": "Markiert ein Item als Favorit, damit man schnell drauf zugreifen kann.",
   "key.emi.set_default": "Als Standard setzen",
   "key.emi.default_stack": "Standard-Stack",
-  "key.emi.default_stack": "Markiert dieses Rezept als Standard für einen Stack.",
+  "config.emi.tooltip.binds.default_stack": "Markiert dieses Rezept als Standard für einen Stack.",
   "key.emi.view_stack_tree": "Stack-Baum ansehen",
   "config.emi.tooltip.binds.view_stack_tree": "Zeigt den Rezeptbaum für einen Stack an.",
   "key.emi.view_tree": "Baum ansehen",

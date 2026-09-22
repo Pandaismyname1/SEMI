@@ -35,6 +35,7 @@ loom {
 		main {
 			sourceSet sourceSets.main
 			sourceSet project(':xplat').sourceSets.main
+			modFiles.from(layout.buildDirectory.dir("generated-class"))
 		}
 	}
 }

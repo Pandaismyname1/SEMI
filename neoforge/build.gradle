@@ -33,7 +33,11 @@ loom {
 
 	mods {
 		main {
+			sourceSet sourceSets.main
 			sourceSet project(':xplat').sourceSets.main
+			// The build-time generated GlobalMixin class lives in an extra output dir that
+			// loom does not add to the mod classpath on its own
+			modFiles.from(layout.buildDirectory.dir("generated-class"))
 		}
 	}
 }

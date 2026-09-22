@@ -27,3 +27,18 @@ Each entry: decision, why, alternatives rejected, what a reviewer should double-
 
 ## D-PR. Push/PR target
 - **Decision:** never push to or open a PR against `emilyploszaj/emi` (origin). That is the upstream maintainer's public repo and the port issue there was closed by the maintainer. Push only to a remote the user owns, if one is configured and authenticated; otherwise leave the branch local and say so.
+
+## D8. NeoForge dev run: register the generated `GlobalMixin` output dir as a loom mod file
+- **Decision:** `fabric/build.gradle` and `neoforge/build.gradle` add `modFiles.from(layout.buildDirectory.dir("generated-class"))` to `loom.mods.main` (and the NeoForge block now also lists its own `sourceSets.main`, as the Fabric block already did).
+- **Why:** upstream's `generateClassLists` task emits `dev/emi/emi/mixin/GlobalMixin.class` into an extra source-set output dir. `loom-no-remap` 1.17 only hands classes/resources dirs to FML's `InDevFolderLocator`, so on NeoForge the class was outside the mod module and `runClient` died at bootstrap with `NoClassDefFoundError: dev/emi/emi/mixin/GlobalMixin` (the packaged jar was unaffected because `jar` copies the dir). Verified: after the change the NeoForge client joins a world and EMI reloads (3727 recipes).
+- **Rejected:** writing the generated class into `build/classes/java/main` (fights `compileJava`'s stale-class cleanup) or into resources (fights `processResources`).
+
+## D9. Resource-level fixes from the runtime review (verified against 26.1.2 / NeoForge 26.1.2.109 bytecode)
+- `neoforge/.../accesstransformer.cfg`: removed three `PotionBrewing` field entries that used 1.20.4 names (`POTION_MIXES`, ...) and silently matched nothing (EMI reaches those fields through `BrewingRecipeRegistryAccessor`), and the `Screen#addWidget` entry; `emi.accesswidener` likewise drops `Screen#addRenderableWidget`. All remaining call sites are `this.` calls inside `Screen` subclasses, so `protected` access suffices; AW and AT now widen the same members.
+- `neoforge/src/main/resources/pack.mcmeta` deleted: it still declared `pack_format 8` (1.18) and NeoForge computes the mod's pack as incompatible; with the file absent NeoForge synthesises a compatible section (the Fabric jar ships none).
+- `assets/emi/recipe/defaults/emi.json`: `minecraft:chain` no longer exists in 26.1 (split into `iron_chain`/`copper_chain`); both new ids listed.
+- `assets/emi/tag/exclusions/emi.json`: `minecraft:occludes_vibration_signals` is a block tag only; removed from the item list.
+- `assets/emi/lang/de_de.json`: duplicate `key.emi.default_stack` key (second one was the tooltip text) renamed to `config.emi.tooltip.binds.default_stack`.
+- `mixin/accessor/SmithingTrimRecipeAccessor` (empty `@Mixin` interface, no members, no references) deleted with its `emi.mixins.json` entry.
+- **Left as is (pre-existing upstream behaviour, noted for the maintainer):** `EmiPersistentData` writes `emi.json` to the process working directory; `EmiPacketHandler` passes `"emi"` where NeoForge expects a protocol version (works, cosmetic); the `conversion.*` mixins are Fabric-only so `EmiStackConvertible#emi()` is unavailable on NeoForge (parity hole that predates the port); `StackBatcher`'s Sodium hook still names the pre-rename `me.jellysquid` package (batcher is inactive on 26.1, see D7).
+
