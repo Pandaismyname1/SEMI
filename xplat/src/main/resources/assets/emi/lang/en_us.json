@@ -107,6 +107,8 @@
   "config.emi.group.binds.crafts": "Crafts",
   "config.emi.group.binds.cheats": "Cheats",
 
+  "config.emi.tooltip.binds.display_all_recipes": "Opens the recipe screen showing every recipe in the game.",
+
   "config.emi.general.enabled": "Enabled",
   "config.emi.general.cheat_mode": "Cheat Mode",
   "config.emi.general.help_level": "Help Level",

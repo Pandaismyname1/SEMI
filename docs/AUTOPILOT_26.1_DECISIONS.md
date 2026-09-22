@@ -27,3 +27,31 @@ Each entry: decision, why, alternatives rejected, what a reviewer should double-
 
 ## D-PR. Push/PR target
 - **Decision:** never push to or open a PR against `emilyploszaj/emi` (origin). That is the upstream maintainer's public repo and the port issue there was closed by the maintainer. Push only to a remote the user owns, if one is configured and authenticated; otherwise leave the branch local and say so.
+
+## D-F2. Recipe / sync / gameplay regression pass (branch `fix/f2-recipes`)
+
+### D-F2.1 `/give` fallback rebuilt by hand — 26.1 deleted `ItemInput#serialize`
+- **Decision:** `EmiPort.serializeItemArgument(ItemStack, HolderLookup.Provider)` rebuilds `namespace:id[component=snbt,!removed]` from `ItemStack#typeHolder`/`getComponentsPatch`, `BuiltInRegistries.DATA_COMPONENT_TYPE`, `TypedDataComponent#encodeValue` and `ItemParser`'s syntax constants. `EmiScreenManager.give` uses it instead of `"give @s " + is.getItem()`.
+- **Why:** `javap` of 26.1.2 `net.minecraft.commands.arguments.item.ItemInput` shows a record with only `createItemStack(int)` — the `serialize(HolderLookup.Provider)` upstream used is gone, and no method with descriptor `(HolderLookup$Provider)String` exists anywhere in the jar. `Item#toString()` drops both the namespace and every component.
+- **Double-check:** in-game, cheat a written book / dyed leather / enchanted item with EMI installed **client-side only** (no EMI on the server) and confirm the command round-trips.
+
+### D-F2.2 `EmiSuspiciousStewRecipe` / `EmiMapCloningRecipe` deleted rather than re-registered
+- **Why:** 26.1.2 has neither `SuspiciousStewRecipe` nor `MapCloningRecipe` (full listing of `net/minecraft/world/item/crafting/`). `data/minecraft/recipe/suspicious_stew_from_*.json` are now plain `minecraft:crafting_shapeless` recipes (17 of them, one per flower) and `map_cloning.json` is a `minecraft:crafting_transmute`, so the existing `ShapelessRecipe` and `TransmuteRecipe` branches already display them from vanilla's own data.
+
+### D-F2.3 Custom-recipe shapeless heuristic: unknown shapes are displayed shapeless
+- **Why:** upstream's `recipe.fits(w, h)` does not exist on 26.1's `Recipe`, and `PlacementInfo` only exposes a flat ingredient list plus a slot map that cannot recover a width. So: recipes with more than 9 ingredients are skipped (replacing `fits(3, 3)`), `ShapedRecipe`s that reach the generic branch are skipped (they are the oversized ones the branch above rejected), and everything else is emitted as a shapeless recipe.
+- **Double-check:** a modded crafting recipe that is shaped but does not extend `ShapedRecipe` will now be shown as shapeless. There is no information left in the API to do better.
+
+### D-F2.4 `ItemTags.DYEABLE` stays `ItemTags.CAULDRON_CAN_REMOVE_DYE`
+- **Why:** `ItemTags` in 26.1.2 has no `DYEABLE` field; `data/minecraft/tags/item/cauldron_can_remove_dye.json` contains exactly the old dyeable set (4 leather armor pieces, leather horse armor, wolf armor).
+
+### D-F2.5 One reload per world join, on both loaders
+- **Decision:** recipes call only `EmiReloadManager.reloadRecipes()`, tags call only `reloadTags()`. Fabric tags come from `CommonLifecycleEvents.TAGS_LOADED` filtered to `client == true`; NeoForge tags come from `TagsUpdatedEvent.ClientPacketReceived`.
+- **Why:** both loaders were calling both halves from a single event, so the two-phase mask in `EmiReloadManager` could never gate anything. Verified in the 26.1.2 jars: `TagsUpdatedEvent$ClientPacketReceived` is posted from `ClientConfigurationPacketListenerImpl` (join) and `ClientPacketListener` (`/reload`), while `ServerDataLoad` comes from `ReloadableServerResources`; Fabric fires `TAGS_LOADED` from the same two client listeners plus `ReloadableServerResources` with `client == false`.
+- **Double-check:** the `client.level != null` guard had to be removed from the NeoForge tag listener, because tags arrive during the configuration phase before a level exists. The reload worker still refuses to run without a level.
+
+### D-F2.6 NeoForge only requests the recipe payload when someone can receive EMI packets
+- **Why:** `OnDatapackSyncEvent#sendRecipes` records recipe types for every player the event syncs to, so it cannot be filtered per player; `getRelevantPlayers().anyMatch(p -> p.connection.hasChannel(EmiNetwork.PING))` is the finest granularity the API allows.
+
+### D-F2.7 NeoForge chess payload registered bidirectionally under `emi:chess`
+- **Why:** `EmiPacketHandler` registered `emi:chess_s2c`/`emi:chess_c2s` while `EmiChessPacket#type()` returns `emi:chess`, so the channel was never registered and `hasChannel` always failed. `registrar(...)` takes a protocol version, not a namespace, so it is now `"1"`.

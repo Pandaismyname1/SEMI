@@ -17,13 +17,30 @@ public class EmiInfoRecipe implements EmiRecipe {
 	private static final int PADDING = 4;
 	private static final Minecraft CLIENT = Minecraft.getInstance();
 	private final List<EmiIngredient> stacks;
-	private final List<FormattedCharSequence> text;
+	private final List<Component> rawText;
 	private final Identifier id;
+	private List<FormattedCharSequence> text;
 
 	public EmiInfoRecipe(List<EmiIngredient> stacks, List<Component> text, @Nullable Identifier id) {
 		this.stacks = stacks;
-		this.text = text.stream().flatMap(t -> CLIENT.font.split(t, getDisplayWidth() - 4).stream()).toList();
+		this.rawText = List.copyOf(text);
 		this.id = id;
+	}
+
+	/**
+	 * Word wrapping resolves every glyph through the font, which stitches it into the font atlas and
+	 * touches the GPU, so it must not happen while EMI is constructing recipes on its reload thread.
+	 * Info recipes are created there (from data packs and from JEI plugins), so the wrapping is
+	 * deferred until the recipe is first laid out or drawn, both of which happen on the render
+	 * thread.
+	 */
+	private List<FormattedCharSequence> getText() {
+		List<FormattedCharSequence> text = this.text;
+		if (text == null) {
+			text = rawText.stream().flatMap(t -> CLIENT.font.split(t, getDisplayWidth() - 4).stream()).toList();
+			this.text = text;
+		}
+		return text;
 	}
 
 	@Override
@@ -59,7 +76,7 @@ public class EmiInfoRecipe implements EmiRecipe {
 	@Override
 	public int getDisplayHeight() {
 		int stackHeight = ((Math.min(stacks.size(), MAX_STACKS) - 1) / STACK_WIDTH + 1) * 18;
-		return stackHeight + CLIENT.font.lineHeight * text.size() + PADDING;
+		return stackHeight + CLIENT.font.lineHeight * getText().size() + PADDING;
 	}
 
 	@Override
@@ -81,8 +98,9 @@ public class EmiInfoRecipe implements EmiRecipe {
 		}
 		int y = stackHeight * 18 + PADDING;
 		int lineCount = (widgets.getHeight() - y) / CLIENT.font.lineHeight;
-		PageManager manager = new PageManager(text, lineCount);
-		if (lineCount < text.size()) {
+		List<FormattedCharSequence> lines = getText();
+		PageManager manager = new PageManager(lines, lineCount);
+		if (lineCount < lines.size()) {
 			widgets.addButton(2, 2, 12, 12, 0, 0, () -> true, (mouseX, mouseY, button) -> {
 				manager.scroll(-1);
 			});

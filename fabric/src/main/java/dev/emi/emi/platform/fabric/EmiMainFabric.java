@@ -15,6 +15,7 @@ import dev.emi.emi.registry.EmiCommands;
 import io.netty.buffer.Unpooled;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.event.registry.RegistryEntryAddedCallback;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -24,7 +25,6 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.codec.StreamDecoder;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.world.item.crafting.RecipeSerializer;
 
 public class EmiMainFabric implements ModInitializer {
 
@@ -50,10 +50,18 @@ public class EmiMainFabric implements ModInitializer {
 		registerVanillaRecipeSerializers();
 	}
 
+	/**
+	 * EMI shows every recipe it can, so it asks Fabric to synchronize every recipe serializer.
+	 * <p>
+	 * This runs in the main entrypoint, which is loaded on both the client and the server, and the
+	 * serializers are kept in a set that is only read once the configuration phase negotiates the
+	 * synchronized serializers, so registering here covers both sides exactly once. Iterating the
+	 * registry directly would miss serializers registered by mods that initialize after EMI, so
+	 * {@link RegistryEntryAddedCallback#allEntries} is used to also catch later additions.
+	 */
 	private void registerVanillaRecipeSerializers() {
-		for (RecipeSerializer<?> serializer : BuiltInRegistries.RECIPE_SERIALIZER) {
-			RecipeSynchronization.synchronizeRecipeSerializer(serializer);
-		}
+		RegistryEntryAddedCallback.allEntries(BuiltInRegistries.RECIPE_SERIALIZER,
+			entry -> RecipeSynchronization.synchronizeRecipeSerializer(entry.value()));
 	}
 
 	private <T extends EmiPacket> void registerPacketReader(CustomPacketPayload.Type<T> id, StreamDecoder<RegistryFriendlyByteBuf, T> decode) {

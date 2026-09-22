@@ -2,6 +2,7 @@ package dev.emi.emi;
 
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.MeshData;
+import com.mojang.serialization.DynamicOps;
 import dev.emi.emi.api.stack.Comparison;
 import dev.emi.emi.mixin.accessor.SmithingTransformRecipeAccessor;
 import net.minecraft.ChatFormatting;
@@ -10,10 +11,16 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Button.OnPress;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.commands.arguments.item.ItemParser;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponentPatch;
+import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.component.TypedDataComponent;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
@@ -45,8 +52,10 @@ import net.minecraft.world.level.material.Fluid;
 
 import java.io.InputStream;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.Random;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public final class EmiPort {
@@ -180,6 +189,41 @@ public final class EmiPort {
 
 	public static Identifier id(String namespace, String path) {
 		return Identifier.fromNamespaceAndPath(namespace, path);
+	}
+
+	/**
+	 * Serializes a stack the way vanilla's item argument parses it, i.e.
+	 * {@code minecraft:stone[minecraft:custom_name={...}]}, for use in commands such as
+	 * {@code /give}.
+	 * <p>
+	 * 26.1 removed {@code ItemInput#serialize}, which upstream used for this, so the component
+	 * syntax is rebuilt here from the same pieces {@link net.minecraft.commands.arguments.item.ItemParser}
+	 * reads back.
+	 */
+	public static String serializeItemArgument(ItemStack stack, HolderLookup.Provider registries) {
+		StringBuilder builder = new StringBuilder(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString());
+		String components = serializeComponents(stack.getComponentsPatch(), registries);
+		if (!components.isEmpty()) {
+			builder.append(ItemParser.SYNTAX_START_COMPONENTS).append(components).append(ItemParser.SYNTAX_END_COMPONENTS);
+		}
+		return builder.toString();
+	}
+
+	private static String serializeComponents(DataComponentPatch patch, HolderLookup.Provider registries) {
+		DynamicOps<Tag> ops = registries.createSerializationContext(NbtOps.INSTANCE);
+		return patch.entrySet().stream().flatMap(entry -> {
+			DataComponentType<?> type = entry.getKey();
+			Identifier id = BuiltInRegistries.DATA_COMPONENT_TYPE.getKey(type);
+			if (id == null || type.isTransient()) {
+				return Stream.<String>empty();
+			}
+			Optional<?> value = entry.getValue();
+			if (value.isEmpty()) {
+				return Stream.of(ItemParser.SYNTAX_REMOVED_COMPONENT + id.toString());
+			}
+			return TypedDataComponent.createUnchecked(type, value.get()).encodeValue(ops).result().stream()
+				.map(tag -> id.toString() + ItemParser.SYNTAX_COMPONENT_ASSIGNMENT + tag);
+		}).collect(Collectors.joining(String.valueOf(ItemParser.SYNTAX_COMPONENT_SEPARATOR)));
 	}
 
 }

@@ -335,6 +335,8 @@ public class VanillaPlugin implements EmiPlugin {
 			EmiPort.getDisabledItems()
 		).collect(Collectors.toSet());
 
+		// 26.1 replaced ItemTags.DYEABLE with ItemTags.CAULDRON_CAN_REMOVE_DYE, which holds the
+		// same set of dyeable items (leather armor, leather horse armor and wolf armor).
 		List<Item> dyeableItems = EmiTagKey.of(ItemTags.CAULDRON_CAN_REMOVE_DYE).getList();
 
 		Set<Class<?>> processedCustomRecipes = Sets.newHashSet();
@@ -404,32 +406,28 @@ public class VanillaPlugin implements EmiPlugin {
 					addRecipeSafe(registry, () -> new EmiCraftingRecipe(input, EmiStack.of(EmiPort.getOutput(imbue)), id, false), recipe);
 				}
 			} else if (recipe instanceof TransmuteRecipe transmute) {
+				// 26.1 turned the old MapCloningRecipe into a crafting_transmute recipe, and the old
+				// SuspiciousStewRecipe into one crafting_shapeless recipe per flower, so both are
+				// covered by this branch and the ShapelessRecipe branch above.
 				List<Ingredient> ingredients = transmute.placementInfo().ingredients();
 				List<EmiIngredient> input = ingredients.stream().map(EmiIngredient::of).toList();
 				EmiShapedRecipe.setRemainders(input, transmute);
 				addRecipeSafe(registry, () -> new EmiCraftingRecipe(input, EmiStack.of(EmiPort.getOutput(transmute)), id, true), recipe);
 			} else if (!(recipe instanceof CustomRecipe)) {
 				try {
+					// Upstream used Recipe#fits here, which 26.1 removed. The only shape information
+					// left on an arbitrary crafting recipe is PlacementInfo, a flat, position-less
+					// ingredient list, so anything that isn't a ShapedRecipe is laid out (and marked)
+					// the way a shapeless recipe is. Shaped recipes small enough to display were
+					// already handled above, so any that reach here do not fit a 3x3 grid.
 					List<Ingredient> ingredients = recipe.placementInfo().ingredients();
+					if (recipe instanceof ShapedRecipe || ingredients.size() > 9) {
+						continue;
+					}
 					if (!ingredients.isEmpty() && !EmiPort.getOutput(recipe).isEmpty()) {
-						boolean shapeless = ingredients.size() <= 1 || ingredients.size() <= 3;
-						List<EmiIngredient> input;
-						if (shapeless) {
-							input = ingredients.stream().map(EmiIngredient::of).toList();
-						} else {
-							int width = recipe instanceof ShapedRecipe shaped ? shaped.getWidth() : 3;
-							input = Lists.newArrayList();
-							for (int i = 0; i < ingredients.size(); i++) {
-								input.add(EmiIngredient.of(ingredients.get(i)));
-								if ((i + 1) % width == 0) {
-									for (int j = width; j < 3; j++) {
-										input.add(EmiStack.EMPTY);
-									}
-								}
-							}
-						}
+						List<EmiIngredient> input = ingredients.stream().map(EmiIngredient::of).toList();
 						EmiShapedRecipe.setRemainders(input, recipe);
-						addRecipeSafe(registry, () -> new EmiCraftingRecipe(input, EmiStack.of(EmiPort.getOutput(recipe)), id, shapeless));
+						addRecipeSafe(registry, () -> new EmiCraftingRecipe(input, EmiStack.of(EmiPort.getOutput(recipe)), id, true));
 					}
 				} catch (Exception e) {
 					EmiReloadLog.warn("Exception when parsing vanilla crafting recipe " + id, e);
@@ -843,6 +841,7 @@ public class VanillaPlugin implements EmiPlugin {
 			return map.byType(type).stream()
 				.map(e -> (T) e.value())::iterator;
 		}
+		EmiReloadLog.warn("No recipes were synchronized from the server, skipping recipe type " + type);
 		return List.of();
 	}
 

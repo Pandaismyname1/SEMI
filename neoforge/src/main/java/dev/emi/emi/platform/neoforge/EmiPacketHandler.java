@@ -1,6 +1,5 @@
 package dev.emi.emi.platform.neoforge;
 
-import dev.emi.emi.EmiPort;
 import dev.emi.emi.network.CommandS2CPacket;
 import dev.emi.emi.network.CreateItemC2SPacket;
 import dev.emi.emi.network.EmiChessPacket;
@@ -12,24 +11,24 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.codec.StreamDecoder;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.world.entity.player.Player;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
-import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public class EmiPacketHandler {
-    private static final CustomPacketPayload.Type<EmiChessPacket.S2C> ID_CHESS_CLIENTBOUND = new CustomPacketPayload.Type<EmiChessPacket.S2C>(EmiPort.id("emi:chess_s2c"));
-    private static final CustomPacketPayload.Type<EmiChessPacket.C2S> ID_CHESS_SERVERBOUND = new CustomPacketPayload.Type<EmiChessPacket.C2S>(EmiPort.id("emi:chess_c2s"));
 
     public static void init(RegisterPayloadHandlersEvent event) {
-        var registrar = event.registrar("emi").optional();
+        // The argument is the channel's protocol version, not a namespace.
+        var registrar = event.registrar("1").optional();
 
         registrar.playToServer(EmiNetwork.FILL_RECIPE, makeReader(EmiNetwork.FILL_RECIPE, FillRecipeC2SPacket::new), EmiPacketHandler::handleServerbound);
         registrar.playToServer(EmiNetwork.CREATE_ITEM, makeReader(EmiNetwork.CREATE_ITEM, CreateItemC2SPacket::new), EmiPacketHandler::handleServerbound);
         registrar.playToClient(EmiNetwork.PING, makeReader(EmiNetwork.PING, PingS2CPacket::new), EmiPacketHandler::handleClientbound);
         registrar.playToClient(EmiNetwork.COMMAND, makeReader(EmiNetwork.COMMAND, CommandS2CPacket::new), EmiPacketHandler::handleClientbound);
-        registrar.playToServer(ID_CHESS_SERVERBOUND, makeReader(ID_CHESS_SERVERBOUND, EmiChessPacket.C2S::new), EmiPacketHandler::handleServerbound);
-        registrar.playToClient(ID_CHESS_CLIENTBOUND, makeReader(ID_CHESS_CLIENTBOUND, EmiChessPacket.S2C::new), EmiPacketHandler::handleClientbound);
+        // Chess uses one id in both directions, matching Fabric, so that the two loaders stay wire
+        // compatible and EmiNetwork's hasChannel check sees a registered channel.
+        registrar.playBidirectional(EmiNetwork.CHESS, makeReader(EmiNetwork.CHESS, EmiChessPacket.C2S::new),
+                (packet, context) -> handleServerbound(packet.asServerbound(), context),
+                (packet, context) -> handleClientbound(packet.asClientbound(), context));
     }
 
     public static EmiPacket wrap(EmiPacket packet) {

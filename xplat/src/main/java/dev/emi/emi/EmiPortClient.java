@@ -1,6 +1,8 @@
 package dev.emi.emi;
 
+import dev.emi.emi.config.EmiConfig;
 import dev.emi.emi.mixin.accessor.SmithingTransformRecipeAccessor;
+import dev.emi.emi.runtime.EmiLog;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
@@ -48,6 +50,7 @@ public class EmiPortClient {
                     return stack;
                 }
             } catch (Exception e) {
+                logOutputFailure(recipe, e);
             }
         } else if (recipe instanceof SingleItemRecipe single) {
             return single.assemble(new SingleRecipeInput(ItemStack.EMPTY));
@@ -67,6 +70,7 @@ public class EmiPortClient {
                 ItemStack result = smithing.assemble(new SmithingRecipeInput(templateStack, baseStack, additionStack));
                 if (!result.isEmpty()) return result;
             } catch (Exception e) {
+                logOutputFailure(recipe, e);
             }
         }
         Minecraft client = Minecraft.getInstance();
@@ -77,6 +81,16 @@ public class EmiPortClient {
             }
         }
         return ItemStack.EMPTY;
+    }
+
+    /**
+     * Assembling a recipe with an empty input is expected to fail for plenty of modded recipes, so
+     * this stays quiet outside of a development environment, where it is worth seeing.
+     */
+    private static void logOutputFailure(Recipe<?> recipe, Exception e) {
+        if (EmiConfig.devMode) {
+            EmiLog.error("Exception assembling output of " + recipe.getClass().getName(), e);
+        }
     }
 
     public static void focus(EditBox widget, boolean focused) {
