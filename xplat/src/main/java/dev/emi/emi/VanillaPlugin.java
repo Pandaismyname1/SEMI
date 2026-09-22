@@ -89,6 +89,7 @@ import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.TallFlowerBlock;
+import net.minecraft.world.level.levelgen.blockpredicates.AnyOfPredicate;
 import net.minecraft.world.level.levelgen.blockpredicates.BlockPredicate;
 import net.minecraft.world.level.levelgen.blockpredicates.CombiningPredicate;
 import net.minecraft.world.level.levelgen.blockpredicates.MatchingBlockTagPredicate;
@@ -766,7 +767,8 @@ public class VanillaPlugin implements EmiPlugin {
 		// Resolved once, not once per item, and certainly not once per comparison
 		EmiPortClient.ContextIntSource source = EmiPortClient.contextIntSource();
 		Set<String> unhandledTypes = Sets.newLinkedHashSet();
-		// Linked, so the item set keeps registry order and the index looks like it did in 26.2
+		// Linked, so the item set keeps registry order, which is more stable than the hash order
+		// 26.2's HashSet produced
 		Object2FloatMap<Item> chances = new Object2FloatLinkedOpenHashMap<>();
 		int unresolved = 0;
 		for (Item item : EmiPort.getItemRegistry()) {
@@ -774,16 +776,16 @@ public class VanillaPlugin implements EmiPlugin {
 			if (compostable == null) {
 				continue;
 			}
-			float chance = EmiPortClient.getExpectedValue(compostable.layers(), source, unhandledTypes::add);
-			if (chance > 0) {
-				chances.put(item, chance);
-			} else {
+			Float chance = EmiPortClient.getExpectedValue(compostable.layers(), source, unhandledTypes::add);
+			if (chance == null) {
 				unresolved++;
+			} else if (chance > 0) {
+				chances.put(item, chance.floatValue());
 			}
 		}
 		if (unresolved > 0) {
 			EmiReloadLog.warn("The compost chance of " + unresolved + " items is unknown, so they are not"
-				+ " listed as compostable." + (source.isEmpty() ? " " + ContextIntValues.MISSING_NUMBER_PROVIDERS : ""));
+				+ " listed as compostable." + source.explainMissing());
 		}
 		ContextIntValues.warnUnhandled(unhandledTypes, "composting chances");
 		compressRecipesToTags(chances.keySet(), (a, b) -> {
@@ -894,18 +896,31 @@ public class VanillaPlugin implements EmiPlugin {
 		} else if (predicate instanceof MatchingBlockTagPredicate matching) {
 			return EmiTagKey.of(((MatchingBlockTagPredicateAccessor) matching).emi$getTag()).getList();
 		} else if (predicate instanceof CombiningPredicate combining) {
-			// Compound checks describe the surroundings as well: tilling wants air above, so only
-			// the child that looks at the block itself, offset zero, names the blocks the
+			// Compound checks describe the surroundings as well: tilling wants air above, so only a
+			// child that looks at the block itself, offset zero, names the blocks the
 			// transformation applies to. Falling back to any other child would publish the
 			// neighbour's blocks, which is the bug this avoids.
+			// An any_of matches when any of its children does, so every zero-offset child's blocks
+			// count; an all_of has to match all of them, so the first one that names blocks is the
+			// one being transformed and the rest narrow it.
+			boolean union = combining instanceof AnyOfPredicate;
+			List<Block> found = Lists.newArrayList();
 			for (BlockPredicate child : ((CombiningPredicateAccessor) combining).emi$getPredicates()) {
 				if (testsOwnPosition(child)) {
 					List<Block> blocks = getPredicateBlocks(child);
 					if (!blocks.isEmpty()) {
-						return blocks;
+						if (!union) {
+							return blocks;
+						}
+						for (Block block : blocks) {
+							if (!found.contains(block)) {
+								found.add(block);
+							}
+						}
 					}
 				}
 			}
+			return found;
 		}
 		return List.of();
 	}

@@ -204,7 +204,7 @@ public class EmiBind {
 		}
 
 		public boolean isUnbound() {
-			return key == InputConstants.UNKNOWN;
+			return key.getValue() == InputConstants.UNKNOWN.getValue();
 		}
 
 		public MutableComponent getKeyText(ChatFormatting formatting) {
