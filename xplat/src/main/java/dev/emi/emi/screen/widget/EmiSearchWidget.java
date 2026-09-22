@@ -17,6 +17,7 @@ import net.minecraft.util.Mth;
 import com.google.common.collect.Lists;
 import com.mojang.datafixers.util.Pair;
 import dev.emi.emi.EmiPort;
+import dev.emi.emi.EmiPortClient;
 import dev.emi.emi.config.EmiConfig;
 import dev.emi.emi.runtime.EmiDrawContext;
 import dev.emi.emi.screen.EmiScreenManager;
@@ -174,12 +175,12 @@ public class EmiSearchWidget extends EditBox {
 		double mouseY = event.y();
 		int button = event.button();
 		if (!isMouseOver(mouseX, mouseY) || !EmiConfig.enabled) {
-			EmiPort.focus(this, false);
+			EmiPortClient.focus(this, false);
 			return false;
 		} else {
 			boolean b = super.mouseClicked(event, button == InputConstants.MOUSE_BUTTON_RIGHT ? false : doubleClick);
 			if (isMouseOver(mouseX, mouseY)) {
-				EmiPort.focus(this, true);
+				EmiPortClient.focus(this, true);
 			}
 			if (this.isFocused()) {
 				if (button == InputConstants.MOUSE_BUTTON_LEFT) {
@@ -191,7 +192,7 @@ public class EmiSearchWidget extends EditBox {
 					}
 				} else if (button == InputConstants.MOUSE_BUTTON_RIGHT) {
 					this.setValue("");
-					EmiPort.focus(this, true);
+					EmiPortClient.focus(this, true);
 				}
 			}
 			return b;
@@ -207,7 +208,7 @@ public class EmiSearchWidget extends EditBox {
 			}
 			if ((EmiConfig.focusSearch.matchesKey(event.key())
 					|| event.key() == InputConstants.KEY_RETURN || event.key() == InputConstants.KEY_ESCAPE)) {
-				EmiPort.focus(this, false);
+				EmiPortClient.focus(this, false);
 				return true;
 			}
 			if (event.key() == InputConstants.KEY_UP || event.key() == InputConstants.KEY_DOWN) {

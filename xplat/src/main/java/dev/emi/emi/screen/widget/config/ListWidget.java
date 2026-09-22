@@ -26,6 +26,7 @@ import org.jetbrains.annotations.Nullable;
 
 import com.google.common.collect.Lists;
 import dev.emi.emi.EmiPort;
+import dev.emi.emi.EmiPortClient;
 
 public class ListWidget extends AbstractContainerEventHandler implements Renderable, NarratableEntry {
 	private static final Identifier MENU_LIST_BACKGROUND_TEXTURE = EmiPort.id("minecraft", "textures/gui/menu_list_background.png");
@@ -238,7 +239,7 @@ public class ListWidget extends AbstractContainerEventHandler implements Rendera
 		for (Entry e : this.children) {
 			for (GuiEventListener el : e.children()) {
 				if (el instanceof EditBox tfw) {
-					EmiPort.focus(tfw, false);
+					EmiPortClient.focus(tfw, false);
 				}
 			}
 		}

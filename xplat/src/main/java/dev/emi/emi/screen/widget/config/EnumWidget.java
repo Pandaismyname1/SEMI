@@ -10,6 +10,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 import net.minecraft.network.chat.Component;
 import dev.emi.emi.EmiPort;
+import dev.emi.emi.EmiPortClient;
 import dev.emi.emi.config.ConfigEnum;
 import dev.emi.emi.screen.ConfigEnumScreen;
 import dev.emi.emi.screen.ConfigScreen;
@@ -23,7 +24,7 @@ public class EnumWidget extends ConfigEntryWidget {
 		super(name, tooltip, search, 20);
 		this.mutator = mutator;
 
-		button = EmiPort.newButton(0, 0, 150, 20, getText(), button -> {
+		button = EmiPortClient.newButton(0, 0, 150, 20, getText(), button -> {
 			page(mutator.get(), filter, mutator::set);
 		});
 		this.setChildren(List.of(button));

@@ -32,6 +32,7 @@ import net.minecraft.world.level.material.Fluid;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.jetbrains.annotations.Nullable;
 import dev.emi.emi.EmiPort;
+import dev.emi.emi.EmiPortClient;
 import dev.emi.emi.api.EmiRegistry;
 import dev.emi.emi.api.stack.EmiIngredient;
 import dev.emi.emi.api.stack.EmiStack;
@@ -221,12 +222,12 @@ public abstract class EmiAgnos {
 	 */
 	protected Map<Item, Integer> getFuelMapAgnos() {
 		Map<Item, Integer> fuelMap = Maps.newLinkedHashMap();
-		boolean resolvable = EmiPort.getContextIntProviders().isPresent();
+		boolean resolvable = EmiPortClient.getContextIntProviders().isPresent();
 		int unresolved = 0;
 		for (Item item : EmiPort.getItemRegistry()) {
 			CookingFuel fuel = item.components().get(DataComponents.COOKING_FUEL);
 			if (fuel != null) {
-				int time = (int) EmiPort.getExpectedValue(fuel.burnTime());
+				int time = (int) EmiPortClient.getExpectedValue(fuel.burnTime());
 				if (time > 0) {
 					fuelMap.put(item, time);
 				} else {

@@ -8,6 +8,7 @@ import net.minecraft.network.chat.Component;
 import com.google.common.collect.Lists;
 
 import dev.emi.emi.EmiPort;
+import dev.emi.emi.EmiPortClient;
 import dev.emi.emi.config.SidebarPages;
 import dev.emi.emi.config.SidebarType;
 import dev.emi.emi.screen.ConfigScreen.Mutator;
@@ -29,14 +30,14 @@ public class SidebarPagesWidget extends ConfigEntryWidget {
 		for (int i = 0; i < pages.pages.size(); i++) {
 			final int j = i;
 			SidebarPages.SidebarPage page = pages.pages.get(i);
-			buttons.add(EmiPort.newButton(0, 0, 194, 20, page.type.getText(), b -> {
+			buttons.add(EmiPortClient.newButton(0, 0, 194, 20, page.type.getText(), b -> {
 				EnumWidget.page(page.type, t -> pages.canShowChess() || t != SidebarType.CHESS, t -> {
 					pages.pages.get(j).type = (SidebarType) t;
 					pages.unique();
 				});
 			}));
 		}
-		buttons.add(EmiPort.newButton(0, 0, 20, 20, EmiPort.literal("+"), b -> {
+		buttons.add(EmiPortClient.newButton(0, 0, 20, 20, EmiPort.literal("+"), b -> {
 			EnumWidget.page(SidebarType.INDEX, t -> pages.canShowChess() || t != SidebarType.CHESS, t -> {
 				pages.pages.add(new SidebarPages.SidebarPage((SidebarType) t));
 				pages.unique();

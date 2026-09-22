@@ -32,6 +32,7 @@ import com.google.common.collect.Sets;
 import com.mojang.blaze3d.systems.RenderSystem;
 
 import dev.emi.emi.EmiPort;
+import dev.emi.emi.EmiPortClient;
 import dev.emi.emi.EmiRenderHelper;
 import dev.emi.emi.EmiUtil;
 import dev.emi.emi.api.EmiApi;
@@ -918,7 +919,7 @@ public class EmiScreenManager {
 				search.setY(screen.height - 21 - 21);
 			}
 		}
-		EmiPort.focus(search, false);
+		EmiPortClient.focus(search, false);
 		search.setVisible(EmiConfig.searchSidebar != SidebarSide.NONE);
 
 		emi.x = 2;
@@ -1169,7 +1170,7 @@ public class EmiScreenManager {
 		if (function.apply(EmiConfig.focusSearch)) {
 			if (client.gui.screen() != null) {
 				client.gui.screen().setFocused(search);
-				EmiPort.focus(search, true);
+				EmiPortClient.focus(search, true);
 				searchBreak = true;
 			}
 		}

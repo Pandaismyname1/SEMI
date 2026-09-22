@@ -6,6 +6,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 import net.minecraft.network.chat.Component;
 import dev.emi.emi.EmiPort;
+import dev.emi.emi.EmiPortClient;
 import dev.emi.emi.config.ScreenAlign;
 import dev.emi.emi.screen.ConfigScreen.Mutator;
 
@@ -17,13 +18,13 @@ public class ScreenAlignWidget extends ConfigEntryWidget {
 		super(name, tooltip, search, 20);
 		this.mutator = mutator;
 
-		horizontal = EmiPort.newButton(0, 0, 106, 20, getHorizontalText(), button -> {
+		horizontal = EmiPortClient.newButton(0, 0, 106, 20, getHorizontalText(), button -> {
 			EnumWidget.page(mutator.get().horizontal, v -> true, c -> {
 				mutator.get().horizontal = (ScreenAlign.Horizontal) c;
 				mutator.set(mutator.get());
 			});
 		});
-		vertical = EmiPort.newButton(0, 0, 106, 20, getVerticalText(), button -> {
+		vertical = EmiPortClient.newButton(0, 0, 106, 20, getVerticalText(), button -> {
 			EnumWidget.page(mutator.get().vertical, v -> true, c -> {
 				mutator.get().vertical = (ScreenAlign.Vertical) c;
 				mutator.set(mutator.get());

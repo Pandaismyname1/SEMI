@@ -9,6 +9,7 @@ import net.minecraft.network.chat.Component;
 import com.google.common.collect.Lists;
 
 import dev.emi.emi.EmiPort;
+import dev.emi.emi.EmiPortClient;
 import dev.emi.emi.config.SidebarSubpanels;
 import dev.emi.emi.config.SidebarType;
 import dev.emi.emi.screen.ConfigScreen.Mutator;
@@ -33,7 +34,7 @@ public class SidebarSubpanelsWidget extends ConfigEntryWidget {
 		for (int i = 0; i < pages.subpanels.size(); i++) {
 			final int j = i;
 			SidebarSubpanels.Subpanel page = pages.subpanels.get(i);
-			buttons.add(EmiPort.newButton(0, 0, 150, 20, page.type.getText(), b -> {
+			buttons.add(EmiPortClient.newButton(0, 0, 150, 20, page.type.getText(), b -> {
 				EnumWidget.page(page.type, t -> t != SidebarType.CHESS, t -> {
 					pages.subpanels.get(j).type = (SidebarType) t;
 					pages.unique();
@@ -45,7 +46,7 @@ public class SidebarSubpanelsWidget extends ConfigEntryWidget {
 			raws.add(edit.down);
 			raws.add(edit.text);
 		}
-		buttons.add(EmiPort.newButton(0, 0, 20, 20, EmiPort.literal("+"), b -> {
+		buttons.add(EmiPortClient.newButton(0, 0, 20, 20, EmiPort.literal("+"), b -> {
 			EnumWidget.page(SidebarType.INDEX, t -> t != SidebarType.CHESS, t -> {
 				pages.subpanels.add(new SidebarSubpanels.Subpanel((SidebarType) t, 1));
 				pages.unique();

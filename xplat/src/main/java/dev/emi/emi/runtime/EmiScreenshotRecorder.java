@@ -27,6 +27,7 @@ import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
 import com.mojang.renderpearl.api.commands.CommandEncoder;
 import com.mojang.renderpearl.api.textures.GpuTexture;
 import dev.emi.emi.EmiPort;
+import dev.emi.emi.EmiPortClient;
 import dev.emi.emi.config.EmiConfig;
 import dev.emi.emi.mixin.accessor.GameRendererAccessor;
 
@@ -64,7 +65,7 @@ public class EmiScreenshotRecorder {
 
 		int scale;
 		if (EmiConfig.recipeScreenshotScale < 1) {
-			scale = EmiPort.getGuiScale(client);
+			scale = EmiPortClient.getGuiScale(client);
 		} else {
 			scale = EmiConfig.recipeScreenshotScale;
 		}

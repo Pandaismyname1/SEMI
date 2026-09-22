@@ -13,6 +13,7 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 
 import dev.emi.emi.EmiPort;
+import dev.emi.emi.EmiPortClient;
 import dev.emi.emi.EmiRenderHelper;
 import dev.emi.emi.runtime.EmiDrawContext;
 import dev.emi.emi.screen.widget.config.EmiNameWidget;
@@ -37,7 +38,7 @@ public class ConfigEnumScreen<T> extends Screen {
 		this.addRenderableOnly(new EmiNameWidget(width / 2, 16));
 		int w = 200;
 		int x = (width - w) / 2;
-		this.addRenderableWidget(EmiPort.newButton(x, height - 30, w, 20, EmiPort.translatable("gui.done"), button -> {
+		this.addRenderableWidget(EmiPortClient.newButton(x, height - 30, w, 20, EmiPort.translatable("gui.done"), button -> {
 			onClose();
 		}));
 		list = new ListWidget(minecraft, width, height, 40, height - 40);
@@ -89,7 +90,7 @@ public class ConfigEnumScreen<T> extends Screen {
 		private final List<ClientTooltipComponent> tooltip;
 
 		public SelectionWidget(ConfigEnumScreen<T> screen, Entry<T> e) {
-			button = EmiPort.newButton(0, 0, 200, 20, e.name(), t -> {
+			button = EmiPortClient.newButton(0, 0, 200, 20, e.name(), t -> {
 				screen.selection.accept(e.value());
 				screen.onClose();
 			});

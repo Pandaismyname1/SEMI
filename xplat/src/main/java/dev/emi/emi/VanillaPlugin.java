@@ -769,7 +769,7 @@ public class VanillaPlugin implements EmiPlugin {
 				unresolved++;
 			}
 		}
-		if (unresolved > 0 && EmiPort.getContextIntProviders().isEmpty()) {
+		if (unresolved > 0 && EmiPortClient.getContextIntProviders().isEmpty()) {
 			EmiReloadLog.warn("The server does not synchronize the number provider registry, so the compost"
 				+ " chance of " + unresolved + " items is unknown. Those items are not listed as compostable.");
 		}
@@ -799,7 +799,7 @@ public class VanillaPlugin implements EmiPlugin {
 		if (compostable == null) {
 			return 0;
 		}
-		return EmiPort.getExpectedValue(compostable.layers());
+		return EmiPortClient.getExpectedValue(compostable.layers());
 	}
 
 	private static void compressRecipesToTags(Set<Item> stacks, Comparator<Item> comparator, Consumer<EmiTagKey<Item>> tagConsumer, Consumer<Item> itemConsumer) {

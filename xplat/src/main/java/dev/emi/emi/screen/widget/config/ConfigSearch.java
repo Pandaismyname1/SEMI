@@ -2,6 +2,7 @@ package dev.emi.emi.screen.widget.config;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.emi.emi.EmiPort;
+import dev.emi.emi.EmiPortClient;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.EditBox;
@@ -44,7 +45,7 @@ public class ConfigSearch {
 		public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
 			if (event.button() == InputConstants.MOUSE_BUTTON_RIGHT && isMouseOver(event.x(), event.y())) {
 				this.setValue("");
-				EmiPort.focus(this, true);
+				EmiPortClient.focus(this, true);
 				return true;
 			}
 			return super.mouseClicked(event, doubleClick);

@@ -8,6 +8,7 @@ import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
 import com.google.common.collect.Lists;
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.emi.emi.EmiPort;
+import dev.emi.emi.EmiPortClient;
 import dev.emi.emi.input.EmiBind;
 import dev.emi.emi.input.EmiBind.ModifiedKey;
 import dev.emi.emi.screen.ConfigScreen;
@@ -29,7 +30,7 @@ public class EmiBindWidget extends ConfigEntryWidget {
 		buttons.clear();
 		for (int i = 0; i < bind.boundKeys.size(); i++) {
 			final int j = i;
-			Button widget = EmiPort.newButton(0, 0, 200, 20, bind.boundKeys.get(i).getKeyText(ChatFormatting.RESET), button -> {
+			Button widget = EmiPortClient.newButton(0, 0, 200, 20, bind.boundKeys.get(i).getKeyText(ChatFormatting.RESET), button -> {
 				screen.setActiveBind(bind, j);
 			});
 			buttons.add(widget);

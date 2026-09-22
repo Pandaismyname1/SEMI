@@ -25,6 +25,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.emi.emi.EmiPort;
+import dev.emi.emi.EmiPortClient;
 import dev.emi.emi.EmiRenderHelper;
 import dev.emi.emi.api.render.EmiTooltipComponents;
 import dev.emi.emi.com.unascribed.qdcss.QDCSS;
@@ -141,15 +142,15 @@ public class ConfigScreen extends Screen {
 		int x = (width - w) / 2;
 		search = new ConfigSearch(x + 3, height - 51, w / 2 - 4, 18);
 		this.addRenderableOnly(search.field);
-		this.resetButton = EmiPort.newButton(x + 2, height - 30, w / 2 - 2, 20, EmiPort.translatable("gui.done"), button -> {
+		this.resetButton = EmiPortClient.newButton(x + 2, height - 30, w / 2 - 2, 20, EmiPort.translatable("gui.done"), button -> {
 			EmiConfig.loadConfig(QDCSS.load("revert", originalConfig));
 			Minecraft client = Minecraft.getInstance();
 			this.init(client.getWindow().getGuiScaledWidth(), client.getWindow().getGuiScaledHeight());
 		});
-		this.addRenderableWidget(EmiPort.newButton(x + w / 2 + 2, height - 30, w / 2 - 2, 20, EmiPort.translatable("gui.done"), button -> {
+		this.addRenderableWidget(EmiPortClient.newButton(x + w / 2 + 2, height - 30, w / 2 - 2, 20, EmiPort.translatable("gui.done"), button -> {
 			this.onClose();
 		}));
-		this.addRenderableWidget(EmiPort.newButton(x + w / 2 + 2, height - 52, w / 2 - 24, 20, EmiPort.translatable("screen.emi.presets"), button -> {
+		this.addRenderableWidget(EmiPortClient.newButton(x + w / 2 + 2, height - 52, w / 2 - 24, 20, EmiPort.translatable("screen.emi.presets"), button -> {
 			Minecraft client = Minecraft.getInstance();
 			client.gui.setScreen(new ConfigPresetScreen(this));
 		}));
@@ -429,7 +430,7 @@ public class ConfigScreen extends Screen {
 			}
 			if (this.getFocused() instanceof EditBox tfw && tfw.isFocused()) {
 				if (event.key() == InputConstants.KEY_ESCAPE) {
-					EmiPort.focus(tfw, false);
+					EmiPortClient.focus(tfw, false);
 					return true;
 				}
 			} else {
