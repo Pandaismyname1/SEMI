@@ -3,38 +3,38 @@ package dev.emi.emi.chess;
 import dev.emi.emi.EmiRenderHelper;
 import dev.emi.emi.runtime.EmiDrawContext;
 import dev.emi.emi.screen.tooltip.EmiTooltipComponent;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.Font;
+import net.minecraft.network.chat.Component;
 
 class ChessTooltipComponent implements EmiTooltipComponent {
 	private final ChessPiece dragged, hovered;
-	private final Text description;
+	private final Component description;
 	
-	public ChessTooltipComponent(ChessPiece dragged, ChessPiece hovered, Text description) {
+	public ChessTooltipComponent(ChessPiece dragged, ChessPiece hovered, Component description) {
 		this.dragged = dragged;
 		this.hovered = hovered;
 		this.description = description;
 	}
 
 	@Override
-	public int getHeight() {
+	public int getHeight(Font textRenderer) {
 		return 30;
 	}
 
 	@Override
-	public int getWidth(TextRenderer textRenderer) {
-		return Math.max(textRenderer.getWidth(description), 48);
+	public int getWidth(Font textRenderer) {
+		return Math.max(textRenderer.width(description), 48);
 	}
 
 	@Override
 	public void drawTooltip(EmiDrawContext context, TooltipRenderData tooltip) {
-		context.drawTexture(EmiRenderHelper.PIECES, 0, 14, 100, dragged.type().u, dragged.color() == PieceColor.BLACK ? 0 : 16, 16, 16);
-		context.drawTexture(EmiRenderHelper.PIECES, 32, 14, 100, hovered.type().u, hovered.color() == PieceColor.BLACK ? 0 : 16, 16, 16);
+		context.drawTexture(EmiRenderHelper.PIECES, 0, 14, dragged.type().u, dragged.color() == PieceColor.BLACK ? 0 : 16, 16, 16);
+		context.drawTexture(EmiRenderHelper.PIECES, 32, 14, hovered.type().u, hovered.color() == PieceColor.BLACK ? 0 : 16, 16, 16);
 	}
 
 	@Override
 	public void drawTooltipText(TextRenderData text) {
-		text.draw(description, 0, 4, 0xffffff, true);
-		text.draw("->", 18, 19, 0xffffff, true);
+		text.draw(description, 0, 4, 0xffffffff, true);
+		text.draw("->", 18, 19, 0xffffffff, true);
 	}
 }

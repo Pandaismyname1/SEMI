@@ -1,6 +1,5 @@
 package dev.emi.emi.mixin;
 
-import org.spongepowered.asm.mixin.Dynamic;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -8,45 +7,48 @@ import org.spongepowered.asm.mixin.injection.At.Shift;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import dev.emi.emi.EmiPort;
 import dev.emi.emi.platform.EmiAgnos;
 import dev.emi.emi.runtime.EmiDrawContext;
 import dev.emi.emi.screen.EmiScreenManager;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 
-@Mixin(HandledScreen.class)
+@Mixin(AbstractContainerScreen.class)
 public abstract class HandledScreenMixin extends Screen {
 	@Shadow
-	protected int backgroundWidth, backgroundHeight, x, y;
+	protected int imageWidth, imageHeight, leftPos, topPos;
 
-	private HandledScreenMixin() { super(null); }
-
-	@Dynamic
-	@Inject(at = @At(value = "INVOKE",
-			target = "net/minecraft/client/gui/screen/ingame/HandledScreen.drawBackground(Lnet/minecraft/client/gui/DrawContext;FII)V",
-			shift = Shift.AFTER),
-		method = "renderBackground(Lnet/minecraft/client/gui/DrawContext;IIF)V")
-	private void renderBackground(DrawContext raw, int mouseX, int mouseY, float delta, CallbackInfo info) {
-		EmiDrawContext context = EmiDrawContext.wrap(raw);
-		EmiScreenManager.drawBackground(context, mouseX, mouseY, delta);
-	}
+	private HandledScreenMixin() { super(null, null, null); }
 
 	@Inject(at = @At(value = "INVOKE",
-			target = "net/minecraft/client/gui/screen/ingame/HandledScreen.drawForeground(Lnet/minecraft/client/gui/DrawContext;II)V",
+			target = "net/minecraft/client/gui/screens/inventory/AbstractContainerScreen.extractLabels(Lnet/minecraft/client/gui/GuiGraphicsExtractor;II)V",
 			shift = Shift.AFTER),
-		method = "render")
-	private void renderForeground(DrawContext raw, int mouseX, int mouseY, float delta, CallbackInfo info) {
+			method = "extractContents(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V")
+	private void renderForeground(GuiGraphicsExtractor raw, int mouseX, int mouseY, float delta, CallbackInfo info) {
 		if (EmiAgnos.isForge()) {
 			return;
 		}
 		EmiDrawContext context = EmiDrawContext.wrap(raw);
 		context.push();
-		context.translate(-x, -y);
-		EmiPort.setPositionTexShader();
+		context.translate(-leftPos, -topPos);
 		EmiScreenManager.render(context, mouseX, mouseY, delta);
+		context.pop();
+	}
+
+	@Inject(at = @At("TAIL"),
+			method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V")
+	private void renderTail(GuiGraphicsExtractor raw, int mouseX, int mouseY, float delta, CallbackInfo info) {
+		if (EmiAgnos.isForge()) {
+			return;
+		}
+		EmiDrawContext context = EmiDrawContext.wrap(raw);
+		context.push();
+		// Run after extractContents/extractCarriedItem/extractSnapbackItem/extractTooltip
+		// so the dragged stack's nextStratum() lands above slot items and the
+		// vanilla carried item — matching NeoForge's ScreenEvent.Render.Post path.
 		EmiScreenManager.drawForeground(context, mouseX, mouseY, delta);
 		context.pop();
+		context.flushDeferredTooltips();
 	}
 }

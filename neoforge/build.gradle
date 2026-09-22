@@ -1,6 +1,4 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import net.fabricmc.loom.task.RemapJarTask
-import net.fabricmc.loom.task.RemapSourcesJarTask
 
 buildscript {
 	repositories {
@@ -14,8 +12,8 @@ buildscript {
 }
 
 plugins {
-	id "dev.architectury.loom"
-	id "com.github.johnrengelman.shadow" version "7.1.2"
+	id "dev.architectury.loom-no-remap"
+	id "com.gradleup.shadow" version "9.4.1"
 }
 if (System.getenv("MODRINTH_TOKEN")) {
 	apply plugin: "com.modrinth.minotaur"
@@ -48,6 +46,16 @@ repositories {
 			includeGroupAndSubgroups "cpw.mods"
 		}
 	}
+	exclusiveContent {
+		forRepository {
+			maven {
+				url "https://cursemaven.com"
+			}
+		}
+		filter {
+			includeGroup "curse.maven"
+		}
+	}
 }
 
 configurations {
@@ -60,15 +68,40 @@ configurations {
 
 dependencies {
 	minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"
-	mappings loom.layered {
-		it.mappings("net.fabricmc:yarn:${project.yarn_mappings}:v2")
-		it.mappings("dev.architectury:yarn-mappings-patch-neoforge:${project.neoforge_yarn_patch}")
-	}
 
 	neoForge "net.neoforged:neoforge:${rootProject.neoforge_version}"
 
-	common(project(path: ":xplat", configuration: "namedElements")) { transitive = false }
+	common(project(path: ":xplat")) { transitive = false }
 	shadowCommon(project(path: ":xplat", configuration: "transformProductionNeoForge")) { transitive = false }
+
+	localRuntime "curse.maven:jei-238222:8419117"
+	localRuntime "curse.maven:refined-storage-243076:8211383"
+	localRuntime "curse.maven:applied-energistics-2-223794:8257570"
+	localRuntime "curse.maven:guideme-1173950:8204880"
+	localRuntime "curse.maven:cooking-for-blockheads-231484:8404511"
+	localRuntime "curse.maven:balm-531761:8424855"
+	localRuntime "curse.maven:energized-power-782147:8400272"
+	localRuntime "curse.maven:just-dire-things-1002348:8251776"
+	localRuntime "curse.maven:inventory-essentials-368825:8362291"
+	localRuntime "curse.maven:jade-324717:8326300"
+	localRuntime "curse.maven:logistics-network-1448257:8419032"
+	localRuntime "curse.maven:pipez-443900:8351634"
+	localRuntime "curse.maven:powah-rearchitected-633483:8025339"
+	localRuntime "curse.maven:cloth-config-348521:7817583"
+	localRuntime "curse.maven:refined-storage-jei-integration-1230497:8175469"
+	localRuntime "curse.maven:sophisticated-backpacks-422301:8377448"
+	localRuntime "curse.maven:sophisticated-core-618298:8412279"
+	localRuntime "curse.maven:yeetusexperimentus-635427:7830957"
+	localRuntime "curse.maven:productivebees-377897:8303935"
+	localRuntime "curse.maven:cucumber-272335:8433624"
+	localRuntime "curse.maven:mystical-agriculture-246640:8344253"
+	localRuntime "curse.maven:mystical-automation-1265613:8205860"
+	localRuntime "curse.maven:patchouli-306770:8404543"
+	localRuntime "curse.maven:placebo-283644:8249025"
+	localRuntime "curse.maven:apothic-attributes-898963:8182592"
+	localRuntime "curse.maven:apothic-enchanting-1063926:8171092"
+	localRuntime "curse.maven:apothic-spawners-986583:8171043"
+	localRuntime "curse.maven:apotheosis-313970:8249091"
 }
 
 processResources {
@@ -86,14 +119,11 @@ shadowJar.configure { ShadowJar jar ->
 	jar.exclude "architectury.common.json"
 
 	jar.configurations = [project.configurations.shadowCommon]
-	jar.archiveClassifier = "dev-shadow"
+	jar.archiveClassifier = ""
 }
 
-def remapJar = tasks.named('remapJar', RemapJarTask)
-
-remapJar.configure { RemapJarTask jar ->
-	dependsOn shadowJar
-	jar.inputFile.convention(shadowJar.flatMap {it.archiveFile })
+tasks.named('jar', Jar).configure {
+	archiveClassifier = "dev"
 }
 
 def sourcesJar = tasks.named('sourcesJar', Jar)
@@ -101,23 +131,23 @@ def sourcesJar = tasks.named('sourcesJar', Jar)
 sourcesJar.configure { Jar jar ->
 	def commonSources = project(":xplat").tasks.named("sourcesJar", Jar)
 	dependsOn commonSources
-	jar.from zipTree(commonSources.flatMap { it.archiveFile })
+	jar.from zipTree(commonSources.get().archiveFile)
 	//TODO: Fix this in a better way that doesn't lead to stripping out the jemi sources
 	jar.exclude 'dev/emi/emi/jemi/**'
 }
 
 def filteredSourcesJar = tasks.register('filteredSourcesJar', Jar, {
 	archiveClassifier = 'filtered-sources'
-	def remapSourcesJar = tasks.named('remapSourcesJar', RemapSourcesJarTask)
-	dependsOn remapSourcesJar
-	from zipTree(remapSourcesJar.flatMap { it.archiveFile })
+	dependsOn sourcesJar
+	from zipTree(sourcesJar.get().archiveFile)
 	exclude 'dev/emi/emi/jemi/**'
 })
 
 def apiJar = tasks.register('apiJar', Jar, {
 	archiveClassifier = 'api'
-	dependsOn remapJar
-	from zipTree(remapJar.flatMap { it.archiveFile })
+	dependsOn shadowJar
+	from zipTree(shadowJar.get().archiveFile)
+	include 'LICENSE'
 	include 'emi.mixins.json'
 	include 'emi-neoforge.mixins.json'
 	include 'emi.accesswidener'
@@ -145,8 +175,8 @@ publishing {
 		register('maven', MavenPublication) {
 			artifactId = "${rootProject.name}-${project.name}"
 			version = project.ext.mavenVersion
-			artifact(remapJar) {
-				builtBy remapJar
+			artifact(shadowJar) {
+				builtBy shadowJar
 				classifier ''
 			}
 			artifact(filteredSourcesJar) {
@@ -181,7 +211,7 @@ if (System.getenv("MODRINTH_TOKEN")) {
 		versionNumber = project.version
 		versionName = project.version
 		versionType = 'release'
-		uploadFile = remapJar
+		uploadFile = shadowJar
 		gameVersions = [rootProject.minecraft_version]
 		loaders = ['neoforge']
 		detectLoaders = false
@@ -201,7 +231,7 @@ if (System.getenv("CURSEFORGE_TOKEN")) {
 			addGameVersion rootProject.minecraft_version
 			addGameVersion 'NeoForge'
 
-			mainArtifact(remapJar.get().archiveFile) {
+			mainArtifact(shadowJar.get().archiveFile) {
 				displayName = 'emi-' + project.version
 			}
 		}

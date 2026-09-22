@@ -1,6 +1,6 @@
 package dev.emi.emi.search;
 
-import net.minecraft.item.BlockItem;
+import net.minecraft.world.item.BlockItem;
 
 import java.util.Set;
 import java.util.regex.Pattern;

@@ -17,13 +17,14 @@ import mezz.jei.api.gui.widgets.IScrollBoxWidget;
 import mezz.jei.api.gui.widgets.IScrollGridWidget;
 import mezz.jei.api.gui.widgets.ISlottedRecipeWidget;
 import mezz.jei.api.gui.widgets.ITextWidget;
-import net.minecraft.text.StringVisitable;
+import net.minecraft.network.chat.FormattedText;
 
 public class JemiRecipeExtrasBuilder implements IRecipeExtrasBuilder {
 	public IRecipeSlotDrawablesView slots;
 	public List<IJeiInputHandler> inputHandlers = Lists.newArrayList();
 	public List<IJeiGuiEventListener> eventListeners = Lists.newArrayList();
 	public List<JemiWidgetBuilder> widgets = Lists.newArrayList();
+	public List<JemiScrollGridWidget> scrollGrids = Lists.newArrayList();
 
 	public JemiRecipeExtrasBuilder(IRecipeSlotDrawablesView slots) {
 		this.slots = slots;
@@ -81,7 +82,9 @@ public class JemiRecipeExtrasBuilder implements IRecipeExtrasBuilder {
 
 	@Override
 	public IScrollGridWidget addScrollGridWidget(List<IRecipeSlotDrawable> slots, int columns, int visibleRows) {
-		return new JemiScrollGridWidget(slots, 0, 0, columns, visibleRows);
+		JemiScrollGridWidget grid = new JemiScrollGridWidget(slots, 0, 0, columns, visibleRows);
+		scrollGrids.add(grid);
+		return grid;
 	}
 
 	@Override
@@ -105,7 +108,7 @@ public class JemiRecipeExtrasBuilder implements IRecipeExtrasBuilder {
 	}
 
 	@Override
-	public ITextWidget addText(List<StringVisitable> text, int maxWidth, int maxHeight) {
+	public ITextWidget addText(List<FormattedText> text, int maxWidth, int maxHeight) {
 		return new JemiTextWidget(text, maxWidth, maxHeight);
 	}
 

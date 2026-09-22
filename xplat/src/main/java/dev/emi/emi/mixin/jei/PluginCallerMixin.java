@@ -15,11 +15,10 @@ import com.google.common.collect.Sets;
 import dev.emi.emi.EmiPort;
 import dev.emi.emi.jemi.JemiUtil;
 import mezz.jei.api.IModPlugin;
-import mezz.jei.library.load.PluginCaller;
-import net.minecraft.util.Identifier;
+import net.minecraft.resources.Identifier;
 
 @Pseudo
-@Mixin(PluginCaller.class)
+@Mixin(targets = "mezz.jei.library.load.PluginCaller")
 public class PluginCallerMixin {
 	@Unique
 	private static final Set<Identifier> SKIPPED = Sets.newHashSet(

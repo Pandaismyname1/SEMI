@@ -18,13 +18,13 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.minecraft.network.PacketByteBuf;
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketDecoder;
-import net.minecraft.network.codec.PacketEncoder;
-import net.minecraft.network.packet.CustomPayload;
-import net.minecraft.util.Identifier;
+import net.fabricmc.fabric.api.recipe.v1.sync.RecipeSynchronization;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.codec.StreamDecoder;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.world.item.crafting.RecipeSerializer;
 
 public class EmiMainFabric implements ModInitializer {
 
@@ -39,19 +39,27 @@ public class EmiMainFabric implements ModInitializer {
 		registerPacketReader(EmiNetwork.CREATE_ITEM, CreateItemC2SPacket::new);
 		registerPacketReader(EmiNetwork.CHESS, EmiChessPacket.C2S::new);
 
-		PayloadTypeRegistry.playS2C().register(EmiNetwork.PING, PacketCodec.ofStatic((buf, v) -> v.write(buf), PingS2CPacket::new));
-		PayloadTypeRegistry.playS2C().register(EmiNetwork.COMMAND, PacketCodec.ofStatic((buf, v) -> v.write(buf), CommandS2CPacket::new));
-		PayloadTypeRegistry.playS2C().register(EmiNetwork.CHESS, PacketCodec.ofStatic((buf, v) -> v.write(buf), EmiChessPacket.S2C::new));
+		PayloadTypeRegistry.clientboundPlay().register(EmiNetwork.PING, StreamCodec.<RegistryFriendlyByteBuf, PingS2CPacket>of((buf, v) -> v.write(buf), PingS2CPacket::new));
+		PayloadTypeRegistry.clientboundPlay().register(EmiNetwork.COMMAND, StreamCodec.<RegistryFriendlyByteBuf, CommandS2CPacket>of((buf, v) -> v.write(buf), CommandS2CPacket::new));
+		PayloadTypeRegistry.clientboundPlay().register(EmiNetwork.CHESS, StreamCodec.<RegistryFriendlyByteBuf, EmiChessPacket>of((buf, v) -> v.write(buf), buf -> new EmiChessPacket.S2C(buf)));
 
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
 			EmiNetwork.sendToClient(handler.player, new PingS2CPacket());
 		});
+
+		registerVanillaRecipeSerializers();
 	}
 
-	private <T extends EmiPacket> void registerPacketReader(CustomPayload.Id<T> id, PacketDecoder<RegistryByteBuf, T> decode) {
-		PayloadTypeRegistry.playC2S().register(id, PacketCodec.ofStatic((buf, v) -> v.write(buf), decode));
+	private void registerVanillaRecipeSerializers() {
+		for (RecipeSerializer<?> serializer : BuiltInRegistries.RECIPE_SERIALIZER) {
+			RecipeSynchronization.synchronizeRecipeSerializer(serializer);
+		}
+	}
+
+	private <T extends EmiPacket> void registerPacketReader(CustomPacketPayload.Type<T> id, StreamDecoder<RegistryFriendlyByteBuf, T> decode) {
+		PayloadTypeRegistry.serverboundPlay().register(id, StreamCodec.of((buf, v) -> v.write(buf), decode));
 		ServerPlayNetworking.registerGlobalReceiver(id, (payload, context) -> {
-			context.player().getServer().execute(() -> {
+			context.player().level().getServer().execute(() -> {
 				((EmiPacket)payload).apply(context.player());
 			});
 		});

@@ -1,6 +1,6 @@
 plugins {
-	id "architectury-plugin" version "3.4-SNAPSHOT"
-	id "dev.architectury.loom" version "1.7-SNAPSHOT" apply false
+	id "architectury-plugin" version "3.5-SNAPSHOT"
+	id "dev.architectury.loom-no-remap" version "1.17-SNAPSHOT" apply false
 }
 
 architectury {
@@ -37,14 +37,26 @@ allprojects {
 
 	tasks.withType(JavaCompile).configureEach({
 		options.encoding = "UTF-8"
-		options.release = 21
+		options.release = 25
 	})
 
 	java {
 		withSourcesJar()
 	}
+	tasks.withType(Jar).configureEach {
+		duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+		from(rootProject.file('LICENSE')) {
+			into('')
+		}
+	}
 
 	def synthMixinDir = layout.buildDirectory.dir("generated-class")
+
+	tasks.named('jar') {
+		from(synthMixinDir) {
+			include "**/*.class"
+		}
+	}
 
 	tasks.register('generateClassLists') {
 		inputs.files(sourceSets.main.output.classesDirs)
@@ -53,7 +65,7 @@ allprojects {
 		doLast {
 			def outputFile = new File(synthMixinDir.get().asFile, "dev/emi/emi/mixin/GlobalMixin.class")
 			outputFile.parentFile.mkdirs()
-			
+
 			def classNames = []
 			def classCount = 0
 
@@ -63,9 +75,9 @@ allprojects {
 						def p = file.path.toLowerCase()
 						if (file.name.endsWith('.class') && !p.contains("mixin") && !p.contains('emiconfig$')) {
 							def relativePath = dir.toPath().relativize(file.toPath()).toString()
-							
+
 							def className = relativePath.replace('.class', '').replace(File.separator, '.')
-							
+
 							classNames += className
 							classCount++
 						}
@@ -130,7 +142,7 @@ allprojects {
 			for (int i = 0; i < classCount; i++) {
 				binary += parseHex("73") + u2(0x0b + i)
 			}
-			
+
 			ClassReader reader = new ClassReader(binary as byte[]);
 			ClassWriter writer = new ClassWriter(reader, 0);
 

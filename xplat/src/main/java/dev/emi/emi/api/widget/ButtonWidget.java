@@ -1,12 +1,13 @@
 package dev.emi.emi.api.widget;
 
 import java.util.function.BooleanSupplier;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.resources.Identifier;
 
 import dev.emi.emi.EmiPort;
 import dev.emi.emi.EmiRenderHelper;
 import dev.emi.emi.runtime.EmiDrawContext;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.util.Identifier;
 
 public class ButtonWidget extends Widget {
 	protected final int x, y, width, height, u, v;
@@ -36,7 +37,7 @@ public class ButtonWidget extends Widget {
 	}
 	
 	@Override
-	public void render(DrawContext draw, int mouseX, int mouseY, float delta) {
+	public void extractRenderState(GuiGraphicsExtractor draw, int mouseX, int mouseY, float delta) {
 		EmiDrawContext context = EmiDrawContext.wrap(draw);
 		int v = this.v;
 		boolean active = this.isActive.getAsBoolean();

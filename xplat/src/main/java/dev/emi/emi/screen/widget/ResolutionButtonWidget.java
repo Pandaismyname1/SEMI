@@ -2,7 +2,11 @@ package dev.emi.emi.screen.widget;
 
 import java.util.List;
 import java.util.function.Supplier;
-
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
+import net.minecraft.client.gui.screens.inventory.tooltip.DefaultTooltipPositioner;
 import dev.emi.emi.EmiPort;
 import dev.emi.emi.EmiRenderHelper;
 import dev.emi.emi.api.render.EmiTexture;
@@ -13,11 +17,8 @@ import dev.emi.emi.bom.BoM;
 import dev.emi.emi.runtime.EmiDrawContext;
 import dev.emi.emi.runtime.EmiHistory;
 import dev.emi.emi.widget.RecipeDefaultButtonWidget;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.widget.ButtonWidget;
 
-public class ResolutionButtonWidget extends ButtonWidget {
+public class ResolutionButtonWidget extends Button {
 	public Supplier<Widget> hoveredWidget;
 	public EmiIngredient stack;
 
@@ -31,7 +32,7 @@ public class ResolutionButtonWidget extends ButtonWidget {
 	}
 
 	@Override
-	public void renderWidget(DrawContext raw, int mouseX, int mouseY, float delta) {
+	public void extractContents(GuiGraphicsExtractor raw, int mouseX, int mouseY, float delta) {
 		EmiDrawContext context = EmiDrawContext.wrap(raw);
 		int u = 0;
 		if (this.isHovered()) {
@@ -46,13 +47,14 @@ public class ResolutionButtonWidget extends ButtonWidget {
 		EmiTexture.SLOT.render(context.raw(), x, y, delta);
 		context.drawTexture(EmiRenderHelper.WIDGETS, x, y, u, 128, width, height);
 		if (this.isHovered()) {
-			MinecraftClient client = MinecraftClient.getInstance();
-			raw.drawTooltip(client.textRenderer, List.of(
+			Minecraft client = Minecraft.getInstance();
+			List<ClientTooltipComponent> tooltipComponents = List.of(
 				EmiPort.translatable("tooltip.emi.resolution"),
 				EmiPort.translatable("tooltip.emi.select_resolution"),
 				EmiPort.translatable("tooltip.emi.default_resolution"),
 				EmiPort.translatable("tooltip.emi.clear_resolution")
-			), mouseX, mouseY);
+			).stream().map(c -> ClientTooltipComponent.create(c.getVisualOrderText())).toList();
+			context.deferTooltip(() -> raw.tooltip(client.font, tooltipComponents, mouseX, mouseY, DefaultTooltipPositioner.INSTANCE, null));
 		}
 		stack.render(raw, x + 1, y + 1, delta);
 	}

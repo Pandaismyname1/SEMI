@@ -1,16 +1,16 @@
 package dev.emi.emi.widget;
 
 import java.util.List;
-
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.state.gui.GuiRenderState;
+import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
+import net.minecraft.resources.Identifier;
 import dev.emi.emi.EmiPort;
 import dev.emi.emi.EmiRenderHelper;
 import dev.emi.emi.api.recipe.EmiRecipe;
 import dev.emi.emi.runtime.EmiDrawContext;
 import dev.emi.emi.runtime.EmiScreenshotRecorder;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.tooltip.TooltipComponent;
-import net.minecraft.util.Identifier;
 
 public class RecipeScreenshotButtonWidget extends RecipeButtonWidget {
 	public RecipeScreenshotButtonWidget(int x, int y, EmiRecipe recipe) {
@@ -18,8 +18,8 @@ public class RecipeScreenshotButtonWidget extends RecipeButtonWidget {
 	}
 
 	@Override
-	public List<TooltipComponent> getTooltip(int mouseX, int mouseY) {
-		return List.of(TooltipComponent.of(EmiPort.ordered(EmiPort.translatable("tooltip.emi.recipe_screenshot"))));
+	public List<ClientTooltipComponent> getTooltip(int mouseX, int mouseY) {
+		return List.of(ClientTooltipComponent.create(EmiPort.ordered(EmiPort.translatable("tooltip.emi.recipe_screenshot"))));
 	}
 
 	@Override
@@ -38,8 +38,8 @@ public class RecipeScreenshotButtonWidget extends RecipeButtonWidget {
 
 		int width = recipe.getDisplayWidth() + 8;
 		int height = recipe.getDisplayHeight() + 8;
-		MinecraftClient client = MinecraftClient.getInstance();
-		DrawContext context = new DrawContext(client, client.getBufferBuilders().getEntityVertexConsumers());
+		Minecraft client = Minecraft.getInstance();
+		GuiGraphicsExtractor context = new GuiGraphicsExtractor(client, new GuiRenderState(), 0, 0);
 		EmiScreenshotRecorder.saveScreenshot("emi/recipes/" + path, width, height,
 			() -> EmiRenderHelper.renderRecipe(recipe, EmiDrawContext.wrap(context), 0, 0, false, -1));
 
