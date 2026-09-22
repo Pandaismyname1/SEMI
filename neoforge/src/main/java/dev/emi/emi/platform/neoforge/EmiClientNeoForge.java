@@ -75,10 +75,12 @@ public class EmiClientNeoForge {
 	public static void recipesReceived(RecipesReceivedEvent event) {
 		if (event.getRecipeTypes().isEmpty() && !warnedAboutEmptyRecipes) {
 			warnedAboutEmptyRecipes = true;
-			EmiLog.warn("The server did not synchronize any recipes with EMI. Crafting recipes will"
-				+ " be unavailable; everything EMI derives from the client (the item index, tags,"
-				+ " world interactions, fuels, brewing, ...) still works. This happens on any server"
-				+ " that does not run NeoForge with EMI installed.");
+			EmiLog.warn("The server did not synchronize any recipes with EMI. Crafting recipes and"
+				+ " brewing, which is a recipe type as of 26.3, will be unavailable; everything EMI"
+				+ " derives from the client (the item index, tags, world interactions, ...) still"
+				+ " works. Fuel burn times and composting chances need the server to run SEMI as well,"
+				+ " or a singleplayer or LAN host world. This happens on any server that does not run"
+				+ " NeoForge with EMI installed.");
 		}
 		EmiAgnosNeoForge.setReceivedRecipeMap(event.getRecipeMap());
 		EmiReloadManager.reloadRecipes();

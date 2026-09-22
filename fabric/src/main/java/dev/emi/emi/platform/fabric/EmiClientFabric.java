@@ -117,10 +117,12 @@ public class EmiClientFabric implements ClientModInitializer {
 			// describes the state before this reload, so it must not be reused.
 			if (!warnedAboutMissingRecipes) {
 				warnedAboutMissingRecipes = true;
-				EmiLog.warn("The server did not synchronize any recipes with EMI. Crafting recipes will"
-					+ " be unavailable; everything EMI derives from the client (the item index, tags,"
-					+ " world interactions, fuels, brewing, ...) still works. This happens on a vanilla"
-					+ " server, or on a server whose Fabric API does not synchronize recipe serializers.");
+				EmiLog.warn("The server did not synchronize any recipes with EMI. Crafting recipes and"
+					+ " brewing, which is a recipe type as of 26.3, will be unavailable; everything EMI"
+					+ " derives from the client (the item index, tags, world interactions, ...) still"
+					+ " works. Fuel burn times and composting chances need the server to run SEMI as"
+					+ " well, or a singleplayer or LAN host world. This happens on a vanilla server, or"
+					+ " on a server whose Fabric API does not synchronize recipe serializers.");
 			}
 			map = RecipeMap.EMPTY;
 		}
