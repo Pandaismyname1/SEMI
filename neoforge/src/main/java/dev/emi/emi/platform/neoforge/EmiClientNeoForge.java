@@ -7,6 +7,7 @@ import dev.emi.emi.data.EmiData;
 import dev.emi.emi.network.EmiNetwork;
 import dev.emi.emi.platform.EmiClient;
 import dev.emi.emi.runtime.EmiDrawContext;
+import dev.emi.emi.runtime.EmiLog;
 import dev.emi.emi.runtime.EmiReloadManager;
 import dev.emi.emi.screen.ConfigScreen;
 import dev.emi.emi.screen.EmiScreenBase;
@@ -34,7 +35,9 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 @EventBusSubscriber(modid = "emi", value = Dist.CLIENT)
 public class EmiClientNeoForge {
-	
+	/** Warn once per connection that the server sent no recipes, not once per datapack reload. */
+	private static boolean warnedAboutEmptyRecipes = false;
+
 	@SubscribeEvent
 	public static void clientInit(FMLClientSetupEvent event) {
 		StackBatcher.EXTRA_RENDER_LAYERS.addAll(Arrays.stream(NeoForgeRenderTypes.values()).map(f -> f.get()).toList());
@@ -65,13 +68,27 @@ public class EmiClientNeoForge {
 		EmiReloadManager.reloadTags();
 	}
 
+	/**
+	 * NeoForge fires this unconditionally once the client has received the server's recipe data,
+	 * with an empty map when no mod on the server asked for any recipe type. EMI still records the
+	 * map and reloads in that case, so the item index, tags and everything EMI derives from the
+	 * client keep working, but it says once why there are no crafting recipes.
+	 */
 	public static void recipesReceived(RecipesReceivedEvent event) {
+		if (event.getRecipeTypes().isEmpty() && !warnedAboutEmptyRecipes) {
+			warnedAboutEmptyRecipes = true;
+			EmiLog.warn("The server did not synchronize any recipes with EMI. Crafting recipes will"
+				+ " be unavailable; everything EMI derives from the client (the item index, tags,"
+				+ " world interactions, fuels, brewing, ...) still works. This happens on a server"
+				+ " that does not have EMI installed.");
+		}
 		EmiAgnosNeoForge.setReceivedRecipeMap(event.getRecipeMap());
 		EmiReloadManager.reloadRecipes();
 	}
 
 	public static void playerLoggedOut(ClientPlayerNetworkEvent.LoggingOut event) {
 		EmiAgnosNeoForge.setReceivedRecipeMap(null);
+		warnedAboutEmptyRecipes = false;
 	}
 
 	public static void renderScreenForeground(ContainerScreenEvent.Render.Foreground event) {

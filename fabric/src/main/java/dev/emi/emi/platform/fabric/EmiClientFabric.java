@@ -10,6 +10,7 @@ import dev.emi.emi.network.EmiNetwork;
 import dev.emi.emi.network.EmiPacket;
 import dev.emi.emi.network.PingS2CPacket;
 import dev.emi.emi.platform.EmiClient;
+import dev.emi.emi.runtime.EmiLog;
 import dev.emi.emi.runtime.EmiReloadManager;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -63,13 +64,14 @@ public class EmiClientFabric implements ClientModInitializer {
 		registerPacketReader(EmiNetwork.CHESS, EmiChessPacket.S2C::new);
 
 		// EMI reloads once both halves of the server's data have arrived, so each event must only
-		// report its own half. Tags arrive during the configuration phase, recipes once the play
-		// phase starts, and /reload re-sends both.
+		// report its own half. This event only records the map; the "recipes" half is reported by
+		// the vanilla recipe packet instead, see onVanillaRecipesReceived.
 		ClientRecipeSynchronizedEvent.EVENT.register((client, recipes) -> {
 			EmiAgnosFabric.setReceivedRecipeMap(RecipeMap.create(recipes.recipes()));
-			EmiReloadManager.reloadRecipes();
 		});
 
+		// Tags arrive during the configuration phase on join and in the play phase on /reload;
+		// TAGS_LOADED with client == true is fired for both, so EMI does not hook either packet.
 		CommonLifecycleEvents.TAGS_LOADED.register((registries, client) -> {
 			if (client) {
 				EmiReloadManager.reloadTags();
@@ -79,6 +81,28 @@ public class EmiClientFabric implements ClientModInitializer {
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
 			EmiAgnosFabric.setReceivedRecipeMap(null);
 		});
+	}
+
+	/**
+	 * Reports the "recipes" half of a reload, called from {@code ClientPlayNetworkHandlerMixin}
+	 * once the vanilla {@code ClientboundUpdateRecipesPacket} has been handled.
+	 * <p>
+	 * Fabric's own {@code ClientRecipeSynchronizedEvent} cannot be the trigger, because Fabric
+	 * silently sends no recipe payload at all when the client cannot receive it (vanilla server) or
+	 * when the negotiated serializer set produced nothing. Waiting for it would leave EMI without
+	 * any data on such a server. The vanilla packet, on the other hand, always arrives, and Fabric
+	 * queues its payload strictly before it on both send paths, so anything the server was going to
+	 * synchronize is already recorded by the time this runs. See D-F2b in the decision log.
+	 */
+	public static void onVanillaRecipesReceived() {
+		if (!EmiAgnosFabric.hasReceivedRecipeMap()) {
+			EmiLog.warn("The server did not synchronize any recipes with EMI. Crafting recipes will"
+				+ " be unavailable; everything EMI derives from the client (the item index, tags,"
+				+ " world interactions, fuels, brewing, ...) still works. This happens on a vanilla"
+				+ " server, or on a server whose Fabric API does not synchronize recipe serializers.");
+			EmiAgnosFabric.setReceivedRecipeMap(RecipeMap.EMPTY);
+		}
+		EmiReloadManager.reloadRecipes();
 	}
 
 	private <T extends EmiPacket> void registerPacketReader(CustomPacketPayload.Type<T> id, StreamDecoder<RegistryFriendlyByteBuf, T> decode) {

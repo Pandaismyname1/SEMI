@@ -19,6 +19,7 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeInput;
 import net.minecraft.world.item.crafting.RecipeMap;
 import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.level.Level;
 
 /**
  * Abstraction over the source of recipes on the client.
@@ -35,12 +36,16 @@ public class ProxyRecipeManager {
 		return getRaw() != null;
 	}
 
+	/**
+	 * The map the server synchronized, or null if none has been received yet.
+	 * <p>
+	 * This is deliberately unconditional. It backs the public {@code EmiRegistry#getRecipeMap},
+	 * which plugins call many times over a reload, and a map that flipped to null part-way through
+	 * (because the level went away for a moment) would make a reload produce half a recipe set. The
+	 * level is only needed where the map is actually queried against the world, see
+	 * {@link #streamMatches}.
+	 */
 	public static @Nullable RecipeMap getRaw() {
-		// Recipes are only meaningful while a world is loaded; a stale map from a previous
-		// session would otherwise be handed a null Level by anything calling Recipe#matches.
-		if (Minecraft.getInstance().level == null) {
-			return null;
-		}
 		return EmiAgnos.getRecipeMap();
 	}
 
@@ -62,10 +67,13 @@ public class ProxyRecipeManager {
 
 	public static <I extends RecipeInput, T extends Recipe<I>> Stream<T> streamMatches(RecipeType<T> type, I inventory) {
 		RecipeMap raw = getRaw();
-		if (raw == null) {
+		// Matching runs Recipe#matches against the level, so it is only meaningful while a world is
+		// loaded. This is the only place the level is needed; getRaw itself must stay valid.
+		Level level = Minecraft.getInstance().level;
+		if (raw == null || level == null) {
 			return Stream.empty();
 		}
-		return raw.getRecipesFor(type, inventory, Minecraft.getInstance().level).map(RecipeHolder::value);
+		return raw.getRecipesFor(type, inventory, level).map(RecipeHolder::value);
 	}
 
 	public static <I extends RecipeInput, T extends Recipe<I>> List<T> getMatches(RecipeType<T> type, I inventory) {

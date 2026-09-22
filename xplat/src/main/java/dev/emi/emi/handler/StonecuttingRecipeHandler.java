@@ -2,17 +2,15 @@ package dev.emi.emi.handler;
 
 import java.util.List;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.Identifier;
 import net.minecraft.util.context.ContextMap;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.inventory.StonecutterMenu;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.SelectableRecipe;
-import net.minecraft.world.item.crafting.SingleRecipeInput;
 import net.minecraft.world.item.crafting.StonecutterRecipe;
 import net.minecraft.world.item.crafting.display.SlotDisplayContext;
+import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
 import com.google.common.collect.Lists;
@@ -22,7 +20,6 @@ import dev.emi.emi.api.recipe.VanillaEmiRecipeCategories;
 import dev.emi.emi.api.recipe.handler.EmiCraftContext;
 import dev.emi.emi.api.recipe.handler.StandardRecipeHandler;
 import dev.emi.emi.api.stack.EmiStack;
-import dev.emi.emi.runtime.ProxyRecipeManager;
 
 public class StonecuttingRecipeHandler implements StandardRecipeHandler<StonecutterMenu> {
 
@@ -57,10 +54,7 @@ public class StonecuttingRecipeHandler implements StandardRecipeHandler<Stonecut
 		boolean action = StandardRecipeHandler.super.craft(recipe, context);
 		Minecraft client = Minecraft.getInstance();
 		StonecutterMenu sh = context.getScreenHandler();
-		int index = findVisibleRecipeIndex(recipe, sh, client);
-		if (index < 0) {
-			index = findSyncedRecipeIndex(recipe);
-		}
+		int index = findRecipeIndex(recipe, client);
 		if (index >= 0) {
 			client.gameMode.handleInventoryButtonClick(sh.containerId, index);
 			if (context.getDestination() == EmiCraftContext.Destination.CURSOR) {
@@ -73,47 +67,48 @@ public class StonecuttingRecipeHandler implements StandardRecipeHandler<Stonecut
 	}
 
 	/**
-	 * The button index the server expects is an index into the menu's own visible recipe list, which
-	 * is the only stonecutter recipe ordering the client is actually told about. The entries only
-	 * carry a display, not an id, so they are matched by their resolved output stack.
+	 * The button index the server expects is an index into the list the menu rebuilds for the input
+	 * it is holding: {@code StonecutterMenu#setupRecipeList} assigns
+	 * {@code level.recipeAccess().stonecutterRecipes().selectByInput(input)} and
+	 * {@code isValidRecipeIndex} bounds the click against that.
+	 * <p>
+	 * This recomputes that list the same way instead of reading {@code getVisibleRecipes()}: the
+	 * client menu only refreshes its copy when {@code slotsChanged} runs, and the stack EMI just
+	 * placed goes in through the server-side fill path, so the menu's list still describes the
+	 * previous input at this point.
+	 * <p>
+	 * The entries carry a display rather than an id, so they are matched by their resolved output
+	 * stack, and an ambiguous match clicks nothing rather than guessing.
 	 */
-	private static int findVisibleRecipeIndex(EmiRecipe recipe, StonecutterMenu handler, Minecraft client) {
-		if (client.level == null || recipe.getOutputs().isEmpty()) {
+	private static int findRecipeIndex(EmiRecipe recipe, Minecraft client) {
+		Level level = client.level;
+		if (level == null || recipe.getInputs().isEmpty() || recipe.getOutputs().isEmpty()) {
 			return -1;
 		}
-		ItemStack wanted = recipe.getOutputs().get(0).getItemStack();
-		if (wanted.isEmpty()) {
+		List<EmiStack> inputs = recipe.getInputs().get(0).getEmiStacks();
+		if (inputs.isEmpty()) {
 			return -1;
 		}
-		ContextMap context = SlotDisplayContext.fromLevel(client.level);
-		List<SelectableRecipe.SingleInputEntry<StonecutterRecipe>> entries = handler.getVisibleRecipes().entries();
+		ItemStack wantedInput = inputs.get(0).getItemStack();
+		ItemStack wantedOutput = recipe.getOutputs().get(0).getItemStack();
+		if (wantedInput.isEmpty() || wantedOutput.isEmpty()) {
+			return -1;
+		}
+		List<SelectableRecipe.SingleInputEntry<StonecutterRecipe>> entries =
+			level.recipeAccess().stonecutterRecipes().selectByInput(wantedInput).entries();
+		ContextMap context = SlotDisplayContext.fromLevel(level);
 		int found = -1;
 		for (int i = 0; i < entries.size(); i++) {
 			ItemStack option = entries.get(i).recipe().optionDisplay().resolveForFirstStack(context);
-			if (ItemStack.isSameItemSameComponents(option, wanted)) {
+			if (ItemStack.isSameItemSameComponents(option, wantedOutput)) {
 				if (found != -1) {
-					// Ambiguous, fall back to the synced recipe map ordering
+					// Two recipes produce the same stack from this input, so there is no way to
+					// tell which one the displayed recipe is. Don't click.
 					return -1;
 				}
 				found = i;
 			}
 		}
 		return found;
-	}
-
-	private static int findSyncedRecipeIndex(EmiRecipe recipe) {
-		List<EmiStack> inputs = recipe.getInputs().isEmpty() ? List.of() : recipe.getInputs().get(0).getEmiStacks();
-		if (inputs.isEmpty()) {
-			return -1;
-		}
-		SingleRecipeInput inv = new SingleRecipeInput(inputs.get(0).getItemStack());
-		List<StonecutterRecipe> recipes = ProxyRecipeManager.getMatches(RecipeType.STONECUTTING, inv);
-		for (int i = 0; i < recipes.size(); i++) {
-			Identifier id = ProxyRecipeManager.getId(recipes.get(i));
-			if (id != null && id.equals(recipe.getId())) {
-				return i;
-			}
-		}
-		return -1;
 	}
 }

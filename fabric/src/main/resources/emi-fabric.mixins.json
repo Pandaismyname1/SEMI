@@ -9,7 +9,6 @@
     "conversion.FluidMixin",
     "conversion.ItemConvertibleMixin",
     "conversion.ItemStackMixin",
-    "ClientConfigurationNetworkHandlerMixin",
     "ClientPlayNetworkHandlerMixin"
   ],
   "server": [],

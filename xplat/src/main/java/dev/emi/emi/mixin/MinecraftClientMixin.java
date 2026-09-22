@@ -1,9 +1,9 @@
 package dev.emi.emi.mixin;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.util.Util;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -30,7 +30,9 @@ public class MinecraftClientMixin {
 				if (ProxyRecipeManager.isAvailable()) {
 					EmiReloadManager.reload();
 				}
-			}, Executors.newFixedThreadPool(1));
+				// Util's shared background pool, not a fresh Executors.newFixedThreadPool(1): that
+				// leaked a live non-daemon thread on every resource reload.
+			}, Util.backgroundExecutor());
 		}
 	}
 
