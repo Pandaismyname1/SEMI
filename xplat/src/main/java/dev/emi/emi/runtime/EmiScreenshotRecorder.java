@@ -1,10 +1,16 @@
 package dev.emi.emi.runtime;
 
 import java.io.File;
-import java.util.OptionalInt;
 import java.util.function.Consumer;
 import net.minecraft.util.Util;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.render.GuiRenderer;
+import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.fog.FogRenderer;
+import net.minecraft.client.renderer.state.GameRenderState;
+import net.minecraft.client.renderer.state.WindowRenderState;
+import net.minecraft.client.renderer.state.gui.GuiRenderState;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
@@ -14,19 +20,18 @@ import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.CommandEncoder;
-import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.textures.GpuTexture;
 import dev.emi.emi.EmiPort;
 import dev.emi.emi.config.EmiConfig;
-import org.joml.Matrix4f;
-import org.joml.Matrix4fStack;
+import dev.emi.emi.mixin.accessor.GameRendererAccessor;
+import dev.emi.emi.mixin.accessor.MinecraftAccessor;
 
 public class EmiScreenshotRecorder {
 	private static final String SCREENSHOTS_DIRNAME = "screenshots";
 
-	public static void saveScreenshot(String path, int width, int height, Runnable renderer) {
+	public static void saveScreenshot(String path, int width, int height, Consumer<GuiGraphicsExtractor> renderer) {
 		if (!RenderSystem.isOnRenderThread()) {
 			Minecraft.getInstance().execute(() -> saveScreenshotInner(path, width, height, renderer));
 		} else {
@@ -34,7 +39,20 @@ public class EmiScreenshotRecorder {
 		}
 	}
 
-	private static void saveScreenshotInner(String path, int width, int height, Runnable renderer) {
+	/**
+	 * Renders one standalone GUI frame containing only the recipe, into an offscreen target, and
+	 * reads it back.
+	 * <p>
+	 * 1.21 could simply bind a framebuffer and draw immediately. 26.1 extracts the GUI into a
+	 * {@link GuiRenderState} first and only {@link GuiRenderer} can turn that state into pixels,
+	 * so the recipe is extracted into vanilla's own render state (which sits empty between frames,
+	 * and which {@code GuiRenderer.render} resets again when it is done) and vanilla's
+	 * {@code GuiRenderer} is run over it. That renderer always draws into
+	 * {@code Minecraft.getMainRenderTarget} and takes its projection and scissor rectangles from
+	 * the window render state, so both are pointed at the screenshot target for the duration of
+	 * the render and restored afterwards. See D-R6 in the port decision log.
+	 */
+	private static void saveScreenshotInner(String path, int width, int height, Consumer<GuiGraphicsExtractor> renderer) {
 		Minecraft client = Minecraft.getInstance();
 
 		int scale;
@@ -43,39 +61,79 @@ public class EmiScreenshotRecorder {
 		} else {
 			scale = EmiConfig.recipeScreenshotScale;
 		}
+		scale = Math.max(1, scale);
 
-		RenderTarget framebuffer = new TextureTarget("EMI Screenshot", width * scale, height * scale, true);
+		GameRenderer gameRenderer = client.gameRenderer;
+		if (gameRenderer == null) {
+			EmiLog.error("Cannot take a recipe screenshot before the game renderer exists");
+			return;
+		}
+		GuiRenderer guiRenderer = ((GameRendererAccessor) gameRenderer).emi$getGuiRenderer();
+		FogRenderer fogRenderer = ((GameRendererAccessor) gameRenderer).emi$getFogRenderer();
+		GameRenderState gameState = gameRenderer.getGameRenderState();
+		if (guiRenderer == null || fogRenderer == null || gameState == null) {
+			EmiLog.error("Cannot take a recipe screenshot, vanilla's GUI renderer is unavailable");
+			return;
+		}
+		GuiRenderState state = gameState.guiRenderState;
+		WindowRenderState window = gameState.windowRenderState;
 
+		RenderTarget framebuffer;
+		try {
+			framebuffer = new TextureTarget("EMI Screenshot", width * scale, height * scale, true);
+		} catch (Throwable t) {
+			EmiLog.error("Could not allocate a render target for the recipe screenshot", t);
+			return;
+		}
 		GpuTexture colorTexture = framebuffer.getColorTexture();
-		if (colorTexture != null) {
-			try (RenderPass renderPass = RenderSystem.getDevice().createCommandEncoder()
-					.createRenderPass(() -> "EMI Screenshot", framebuffer.getColorTextureView(), OptionalInt.of(0))) {
-				Matrix4fStack view = RenderSystem.getModelViewStack();
-				view.pushMatrix();
-				view.identity();
-				view.translate(-1.0f, 1.0f, 0.0f);
-				view.scale(2f / width, -2f / height, -1f / 1000f);
-				view.translate(0.0f, 0.0f, 10.0f);
-
-				GpuBufferSlice backupProj = RenderSystem.getProjectionMatrixBuffer();
-				ProjectionType backupProjType = RenderSystem.getProjectionType();
-
-				GpuBuffer projBuf = RenderSystem.getDevice().createBuffer(() -> "EMI Projection", GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_MAP_WRITE, 64);
-				try (GpuBuffer.MappedView mapped = RenderSystem.getDevice().createCommandEncoder().mapBuffer(projBuf, false, true)) {
-					new Matrix4f().identity().get(mapped.data());
-				}
-				RenderSystem.setProjectionMatrix(projBuf.slice(), ProjectionType.ORTHOGRAPHIC);
-
-				renderer.run();
-
-				RenderSystem.setProjectionMatrix(backupProj, backupProjType);
-				projBuf.close();
-				view.popMatrix();
-			}
+		if (colorTexture == null) {
+			framebuffer.destroyBuffers();
+			EmiLog.error("Could not allocate a render target for the recipe screenshot");
+			return;
 		}
 
-		saveScreenshotInner(client.gameDirectory, path, framebuffer,
-			message -> client.execute(() -> client.gui.getChat().addClientSystemMessage(message)));
+		RenderTarget mainTarget = client.getMainRenderTarget();
+		int windowWidth = window.width;
+		int windowHeight = window.height;
+		int windowGuiScale = window.guiScale;
+		GpuBufferSlice backupProj = RenderSystem.getProjectionMatrixBuffer();
+		ProjectionType backupProjType = RenderSystem.getProjectionType();
+		boolean rendered = false;
+		try {
+			state.reset();
+			renderer.accept(new GuiGraphicsExtractor(client, state, 0, 0));
+
+			((MinecraftAccessor) client).emi$setMainRenderTarget(framebuffer);
+			window.width = framebuffer.width;
+			window.height = framebuffer.height;
+			window.guiScale = scale;
+
+			// GuiRenderer never clears, and unlike the main target this one is cleared to a fully
+			// transparent black so that the recipe keeps its transparent background
+			RenderSystem.getDevice().createCommandEncoder()
+				.clearColorAndDepthTextures(colorTexture, 0, framebuffer.getDepthTexture(), 1.0);
+
+			guiRenderer.render(fogRenderer.getBuffer(FogRenderer.FogMode.NONE));
+			guiRenderer.endFrame();
+			rendered = true;
+		} catch (Throwable t) {
+			EmiLog.error("Failed to render recipe screenshot", t);
+		} finally {
+			((MinecraftAccessor) client).emi$setMainRenderTarget(mainTarget);
+			window.width = windowWidth;
+			window.height = windowHeight;
+			window.guiScale = windowGuiScale;
+			RenderSystem.setProjectionMatrix(backupProj, backupProjType);
+			state.reset();
+		}
+
+		if (rendered) {
+			saveScreenshotInner(client.gameDirectory, path, framebuffer,
+				message -> client.execute(() -> client.gui.getChat().addClientSystemMessage(message)));
+		}
+		// The readback above only issues the copy; it reads from the buffer it filled, never from
+		// the texture again, so the target can go away immediately
+		framebuffer.destroyBuffers();
 	}
 
 	private static void saveScreenshotInner(File gameDirectory, String suggestedPath, RenderTarget framebuffer, Consumer<Component> messageReceiver) {
@@ -114,8 +172,11 @@ public class EmiScreenshotRecorder {
 			return;
 		}
 		int usage = GpuBuffer.USAGE_MAP_READ | GpuBuffer.USAGE_COPY_DST;
+		// The readback is run as a fenced task, by which point the render target this texture
+		// belongs to has been destroyed, so nothing about it may be looked up from inside it
+		int pixelSize = gputexture.getFormat().pixelSize();
 		GpuBuffer gpubuffer = RenderSystem.getDevice()
-			.createBuffer(() -> "EMI Screenshot buffer", usage, i * j * gputexture.getFormat().pixelSize());
+			.createBuffer(() -> "EMI Screenshot buffer", usage, i * j * pixelSize);
 		CommandEncoder commandencoder = RenderSystem.getDevice().createCommandEncoder();
 		commandencoder.copyTextureToBuffer(gputexture, gpubuffer, 0, () -> {
 			try (GpuBuffer.MappedView mappedview = commandencoder.mapBuffer(gpubuffer, true, false)) {
@@ -123,7 +184,7 @@ public class EmiScreenshotRecorder {
 
 				for (int i1 = 0; i1 < j; i1++) {
 					for (int j1 = 0; j1 < i; j1++) {
-						int k1 = mappedview.data().getInt((j1 + i1 * i) * gputexture.getFormat().pixelSize());
+						int k1 = mappedview.data().getInt((j1 + i1 * i) * pixelSize);
 						// Unlike vanilla's screenshot of the main framebuffer, this target is
 						// cleared to (0, 0, 0, 0), so the alpha read back is meaningful and is
 						// kept to preserve the recipe's transparent background

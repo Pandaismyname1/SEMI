@@ -11,12 +11,15 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.metadata.animation.AnimationMetadataSection;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -42,8 +45,11 @@ public class EmiTags {
 	public static final InheritanceMap<EmiRegistryAdapter<?>> ADAPTERS_BY_CLASS = new InheritanceMap<>(Maps.newHashMap());
 	public static final Map<Registry<?>, EmiRegistryAdapter<?>> ADAPTERS_BY_REGISTRY = Maps.newHashMap();
 	public static final Identifier HIDDEN_FROM_RECIPE_VIEWERS = EmiPort.id("c", "hidden_from_recipe_viewers");
-	public static final Map<TagKey<?>, Identifier> MODELED_TAGS = Maps.newHashMap();
-	private static final Map<Identifier, List<TagIconLayer>> TAG_ICONS = Maps.newHashMap();
+	// Rebuilt on the reload worker and read by the render thread, so these three are published as
+	// immutable snapshots rather than mutated in place
+	private static volatile Map<TagKey<?>, Identifier> MODELED_TAGS = Map.of();
+	private static volatile Map<Identifier, List<TagIconLayer>> TAG_ICONS = Map.of();
+	private static volatile Map<Identifier, Item> TAG_ICON_ITEMS = Map.of();
 	private static final Map<Set<?>, List<EmiTagKey<?>>> CACHED_TAGS = Maps.newHashMap();
 	private static final Map<EmiTagKey<?>, List<?>> TAG_VALUES = Maps.newHashMap();
 	private static final Map<Identifier, List<EmiTagKey<?>>> SORTED_TAGS = Maps.newHashMap();
@@ -154,24 +160,44 @@ public class EmiTags {
 	}
 
 	/**
-	 * A single texture of a tag icon, drawn as the [x, x + width) horizontal slice of a 16x16
-	 * texture, at that same slice of the 16x16 slot. A plain single texture icon is one layer
-	 * covering the full width.
+	 * A single texture of a tag icon, drawn as the [x, x + width) horizontal slice of the 16x16
+	 * slot. The slice of the source texture is scaled to its real size, and only the first
+	 * animation frame is used, so {@code frameHeight} may be shorter than {@code textureHeight}.
+	 * A plain single texture icon is one layer covering the full width.
 	 */
-	public record TagIconLayer(Identifier texture, int x, int width) {
+	public record TagIconLayer(Identifier texture, int x, int width, int textureWidth, int textureHeight, int frameHeight) {
+	}
+
+	/**
+	 * The tags that have a custom model, mapped to that model's id. Immutable, replaced wholesale
+	 * on reload.
+	 */
+	public static Map<TagKey<?>, Identifier> getModeledTags() {
+		return MODELED_TAGS;
 	}
 
 	/**
 	 * The icon to draw for a tag model, or null if the model could not be reduced to flat
-	 * textures, in which case callers fall back to rendering the tag's first stack.
+	 * textures, in which case callers fall back to {@link #getTagIconItem} and then to rendering
+	 * the tag's first stack.
 	 */
 	public static List<TagIconLayer> getTagIcon(Identifier modelId) {
 		return modelId == null ? null : TAG_ICONS.get(modelId);
 	}
 
+	/**
+	 * The item whose model a tag model simply inherits, if any. 1.21 baked the tag model and got
+	 * the item's full model for free; here the item is rendered directly instead, which keeps
+	 * block models like {@code #minecraft:logs} looking like blocks rather than a flat face.
+	 */
+	public static Item getTagIconItem(Identifier modelId) {
+		return modelId == null ? null : TAG_ICON_ITEMS.get(modelId);
+	}
+
 	public static void registerTagModels(ResourceManager manager, Consumer<Identifier> consumer) {
-		EmiTags.MODELED_TAGS.clear();
-		EmiTags.TAG_ICONS.clear();
+		Map<TagKey<?>, Identifier> modeled = Maps.newHashMap();
+		Map<Identifier, List<TagIconLayer>> icons = Maps.newHashMap();
+		Map<Identifier, Item> iconItems = Maps.newHashMap();
 		for (Identifier id : EmiPort.findResources(manager, "models/tag", s -> s.endsWith(".json"))) {
 			String path = id.getPath();
 			path = path.substring(11, path.length() - 5);
@@ -179,14 +205,19 @@ public class EmiTags {
 			if (parts.length > 1) {
 				TagKey<?> key = TagKey.create(ResourceKey.createRegistryKey(EmiPort.id("minecraft", parts[0])), EmiPort.id(id.getNamespace(), path.substring(1 + parts[0].length())));
 				Identifier mid = EmiPort.id(id.getNamespace(), "tag/" + path);
-				EmiTags.MODELED_TAGS.put(key, mid);
-				List<TagIconLayer> icon = resolveTagIcon(manager, mid);
+				modeled.put(key, mid);
+				TagIcon icon = resolveTagIcon(manager, mid);
 				if (icon != null) {
-					EmiTags.TAG_ICONS.put(mid, icon);
+					if (icon.item() != null) {
+						iconItems.put(mid, icon.item());
+					} else if (icon.layers() != null) {
+						icons.put(mid, icon.layers());
+					}
 				}
 				consumer.accept(mid);
 			}
 		}
+		publish(modeled, icons, iconItems);
 		/*
 		Disable legacy tag models in 1.21+ due to modeling complications
 		for (Identifier id : EmiPort.findResources(manager, "models/item/tags", s -> s.endsWith(".json"))) {
@@ -330,10 +361,20 @@ public class EmiTags {
 			}
 			registerTagModels(manager, id -> {});
 		} catch (Throwable t) {
-			EmiTags.MODELED_TAGS.clear();
-			EmiTags.TAG_ICONS.clear();
+			publish(Map.of(), Map.of(), Map.of());
 			EmiReloadLog.warn("Error discovering tag models", t);
 		}
+	}
+
+	/**
+	 * Swaps in the new snapshots. Each field is written once, so the render thread only ever sees
+	 * a complete map, never one that is being filled in.
+	 */
+	private static void publish(Map<TagKey<?>, Identifier> modeled, Map<Identifier, List<TagIconLayer>> icons,
+			Map<Identifier, Item> iconItems) {
+		MODELED_TAGS = Map.copyOf(modeled);
+		TAG_ICONS = Map.copyOf(icons);
+		TAG_ICON_ITEMS = Map.copyOf(iconItems);
 	}
 
 	private static final int MODEL_PARENT_LIMIT = 16;
@@ -341,7 +382,7 @@ public class EmiTags {
 	// common block model parents (cube_all, cube_column, slab, stairs, cross...).
 	private static final String[] ICON_TEXTURE_KEYS = {"layer0", "all", "south", "side", "texture", "end", "top", "cross", "front", "particle"};
 
-	private static List<TagIconLayer> resolveTagIcon(ResourceManager manager, Identifier modelId) {
+	private static TagIcon resolveTagIcon(ResourceManager manager, Identifier modelId) {
 		try {
 			Map<String, String> textures = new HashMap<>();
 			Identifier current = modelId;
@@ -367,9 +408,17 @@ public class EmiTags {
 					break;
 				}
 				Identifier parentId = Identifier.parse(parent.getAsString());
-				List<TagIconLayer> split = splitTagIcon(parentId, textures);
+				List<TagIconLayer> split = splitTagIcon(manager, parentId, textures);
 				if (split != null) {
-					return split;
+					return new TagIcon(null, split);
+				}
+				if (textures.isEmpty()) {
+					// A model that declares nothing of its own and just points at an item or block
+					// model is asking for that item to be drawn, not for one of its faces
+					Item item = inheritedItem(parentId);
+					if (item != null) {
+						return new TagIcon(item, null);
+					}
 				}
 				current = parentId;
 			}
@@ -385,7 +434,8 @@ public class EmiTags {
 			if (texture == null) {
 				return null;
 			}
-			return List.of(new TagIconLayer(texturePath(texture), 0, 16));
+			TagIconLayer layer = tagIconLayer(manager, texture, 0, 16);
+			return layer == null ? null : new TagIcon(null, List.of(layer));
 		} catch (Exception e) {
 			EmiReloadLog.warn("Error reading tag model " + modelId, e);
 			return null;
@@ -393,11 +443,46 @@ public class EmiTags {
 	}
 
 	/**
+	 * Either the item whose model a tag model inherits, or the flat texture layers the model was
+	 * reduced to. Exactly one of the two is non null.
+	 */
+	private record TagIcon(Item item, List<TagIconLayer> layers) {
+	}
+
+	/**
+	 * The item a {@code <ns>:block/<name>} or {@code <ns>:item/<name>} model belongs to, if there
+	 * is one. Template parents like {@code item/generated} or {@code block/cube_all} have no item
+	 * of that name and so resolve to null.
+	 */
+	private static Item inheritedItem(Identifier parentId) {
+		String path = parentId.getPath();
+		String name;
+		if (path.startsWith("block/")) {
+			name = path.substring("block/".length());
+		} else if (path.startsWith("item/")) {
+			name = path.substring("item/".length());
+		} else {
+			return null;
+		}
+		if (name.isEmpty() || name.indexOf('/') >= 0) {
+			return null;
+		}
+		Identifier itemId = EmiPort.id(parentId.getNamespace(), name);
+		Registry<Item> registry = EmiPort.getItemRegistry();
+		if (!registry.containsKey(itemId)) {
+			return null;
+		}
+		Item item = registry.getValue(itemId);
+		// Air renders as nothing, which would be worse than the texture or first stack fallbacks
+		return item == null || item == Items.AIR ? null : item;
+	}
+
+	/**
 	 * EMI's own multi texture models, which split the slot into vertical strips. The strips match
 	 * the element bounds in the model json; a model element's south face defaults to the uv of its
 	 * own x range, so each strip shows that same slice of its texture.
 	 */
-	private static List<TagIconLayer> splitTagIcon(Identifier parentId, Map<String, String> textures) {
+	private static List<TagIconLayer> splitTagIcon(ResourceManager manager, Identifier parentId, Map<String, String> textures) {
 		if (!parentId.getNamespace().equals("emi")) {
 			return null;
 		}
@@ -426,9 +511,69 @@ public class EmiTags {
 			if (texture == null) {
 				return null;
 			}
-			layers.add(new TagIconLayer(texturePath(texture), bounds[i], bounds[i + 1] - bounds[i]));
+			TagIconLayer layer = tagIconLayer(manager, texture, bounds[i], bounds[i + 1] - bounds[i]);
+			if (layer == null) {
+				return null;
+			}
+			layers.add(layer);
 		}
-		return layers;
+		return List.copyOf(layers);
+	}
+
+	/**
+	 * Resolves a texture reference to a layer, or null if the texture is not actually present in
+	 * the resource pack, in which case the caller falls back rather than blitting a missing
+	 * texture. Animated textures are reduced to their first frame.
+	 */
+	private static TagIconLayer tagIconLayer(ResourceManager manager, String texture, int x, int width) {
+		Identifier path = texturePath(texture);
+		Optional<Resource> resource = manager.getResource(path);
+		if (resource.isEmpty()) {
+			return null;
+		}
+		int[] size = readPngSize(resource.get());
+		if (size == null) {
+			return null;
+		}
+		int frameHeight = size[1];
+		try {
+			Optional<AnimationMetadataSection> animation = resource.get().metadata().getSection(AnimationMetadataSection.TYPE);
+			if (animation.isPresent()) {
+				frameHeight = animation.get().calculateFrameSize(size[0], size[1]).height();
+			}
+		} catch (Exception e) {
+			return null;
+		}
+		if (frameHeight <= 0 || frameHeight > size[1]) {
+			return null;
+		}
+		return new TagIconLayer(path, x, width, size[0], size[1], frameHeight);
+	}
+
+	/**
+	 * Reads width and height out of a PNG's IHDR chunk, so that the slice drawn for a layer can be
+	 * scaled to the texture's real size instead of assuming 16x16.
+	 */
+	private static int[] readPngSize(Resource resource) {
+		try (InputStream stream = EmiPort.getInputStream(resource)) {
+			if (stream == null) {
+				return null;
+			}
+			byte[] header = stream.readNBytes(24);
+			if (header.length < 24 || (header[0] & 0xFF) != 0x89 || header[1] != 'P' || header[2] != 'N' || header[3] != 'G') {
+				return null;
+			}
+			int width = readInt(header, 16);
+			int height = readInt(header, 20);
+			return width > 0 && height > 0 ? new int[] {width, height} : null;
+		} catch (Exception e) {
+			return null;
+		}
+	}
+
+	private static int readInt(byte[] bytes, int offset) {
+		return ((bytes[offset] & 0xFF) << 24) | ((bytes[offset + 1] & 0xFF) << 16)
+			| ((bytes[offset + 2] & 0xFF) << 8) | (bytes[offset + 3] & 0xFF);
 	}
 
 	private static JsonObject readModel(ResourceManager manager, Identifier modelId) {

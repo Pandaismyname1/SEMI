@@ -90,6 +90,14 @@ public class StackBatcher {
 	}
 
 	public StackBatcher() {
+		// Every sidebar ScreenSpace owns a batcher, and the ByteBufferBuilders below are several
+		// megabytes of off-heap memory that is never freed. Since nothing is ever batched on 26.1,
+		// skip the allocation entirely and leave this instance inert.
+		if (!isEnabled()) {
+			imm = null;
+			unlitFacade = null;
+			return;
+		}
 		Map<RenderType, ByteBufferBuilder> buffers = new HashMap<>();
 		assign(buffers, Sheets.cutoutBlockSheet());
 		assign(buffers, Sheets.translucentItemSheet());
@@ -126,6 +134,9 @@ public class StackBatcher {
 	}
 
 	public void render(Batchable batchable, GuiGraphicsExtractor draw, int x, int y, float delta) {
+		if (!isEnabled()) {
+			return;
+		}
 		if (!populated) {
 			try {
 				batchable.renderForBatch(batchable.isSideLit() ? imm : unlitFacade, draw, x-this.x, y+this.y, z, delta);

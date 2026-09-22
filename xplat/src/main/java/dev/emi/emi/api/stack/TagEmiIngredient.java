@@ -6,6 +6,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.item.Item;
 import org.jetbrains.annotations.ApiStatus;
 
 import com.google.common.collect.Lists;
@@ -29,6 +30,11 @@ public class TagEmiIngredient implements EmiIngredient {
 	private final EmiTagKey<?> tagKey;
 	private long amount;
 	private float chance = 1;
+	/**
+	 * Lazily built stack for a tag model that just inherits an item's model, so that rendering it
+	 * does not allocate one per slot per frame.
+	 */
+	private EmiStack iconStack;
 
 	@ApiStatus.Internal
 	public TagEmiIngredient(TagKey<?> key, long amount) {
@@ -102,12 +108,24 @@ public class TagEmiIngredient implements EmiIngredient {
 		EmiDrawContext context = EmiDrawContext.wrap(draw);
 
 		if ((flags & RENDER_ICON) != 0) {
-			List<EmiTags.TagIconLayer> icon = EmiTags.getTagIcon(tagKey.getCustomModel());
-			if (icon != null) {
+			Identifier model = tagKey.getCustomModel();
+			Item iconItem = EmiTags.getTagIconItem(model);
+			List<EmiTags.TagIconLayer> icon = EmiTags.getTagIcon(model);
+			if (iconItem != null) {
+				// The tag model only inherits an item or block model, so render that item rather
+				// than flattening its model down to a single face
+				if (iconStack == null || iconStack.getKey() != iconItem) {
+					iconStack = EmiStack.of(iconItem);
+				}
+				iconStack.render(context.raw(), x, y, delta, -1 ^ RENDER_AMOUNT);
+			} else if (icon != null) {
 				// 1.21 rendered a baked model here; 26.1 has no standalone model registry, so the
 				// tag model is resolved down to flat textures at reload and blitted over the slot
 				for (EmiTags.TagIconLayer layer : icon) {
-					context.drawTexture(layer.texture(), x + layer.x(), y, layer.width(), 16, layer.x(), 0, layer.width(), 16, 16, 16);
+					float u = layer.x() * layer.textureWidth() / 16f;
+					int regionWidth = Math.max(1, layer.width() * layer.textureWidth() / 16);
+					context.drawTexture(layer.texture(), x + layer.x(), y, layer.width(), 16,
+						u, 0, regionWidth, layer.frameHeight(), layer.textureWidth(), layer.textureHeight());
 				}
 			} else if (stacks.size() > 0) {
 				stacks.get(0).render(context.raw(), x, y, delta, -1 ^ RENDER_AMOUNT);
