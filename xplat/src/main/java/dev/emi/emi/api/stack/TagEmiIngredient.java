@@ -110,7 +110,6 @@ public class TagEmiIngredient implements EmiIngredient {
 		if ((flags & RENDER_ICON) != 0) {
 			Identifier model = tagKey.getCustomModel();
 			Item iconItem = EmiTags.getTagIconItem(model);
-			List<EmiTags.TagIconLayer> icon = EmiTags.getTagIcon(model);
 			if (iconItem != null) {
 				// The tag model only inherits an item or block model, so render that item rather
 				// than flattening its model down to a single face
@@ -118,17 +117,23 @@ public class TagEmiIngredient implements EmiIngredient {
 					iconStack = EmiStack.of(iconItem);
 				}
 				iconStack.render(context.raw(), x, y, delta, -1 ^ RENDER_AMOUNT);
-			} else if (icon != null) {
-				// 1.21 rendered a baked model here; 26.1 has no standalone model registry, so the
-				// tag model is resolved down to flat textures at reload and blitted over the slot
-				for (EmiTags.TagIconLayer layer : icon) {
-					float u = layer.x() * layer.textureWidth() / 16f;
-					int regionWidth = Math.max(1, layer.width() * layer.textureWidth() / 16);
-					context.drawTexture(layer.texture(), x + layer.x(), y, layer.width(), 16,
-						u, 0, regionWidth, layer.frameHeight(), layer.textureWidth(), layer.textureHeight());
+			} else {
+				// Only looked up once the item lookup has missed; the two are mutually exclusive
+				List<EmiTags.TagIconLayer> icon = EmiTags.getTagIcon(model);
+				if (icon != null) {
+					// 1.21 rendered a baked model here; 26.1 has no standalone model registry, so
+					// the tag model is resolved down to flat textures at reload and blitted over
+					// the slot. Only the first animation frame is drawn, so the slice is taken out
+					// of the frame's size rather than the whole texture's
+					for (EmiTags.TagIconLayer layer : icon) {
+						float u = layer.x() * layer.frameWidth() / 16f;
+						int regionWidth = Math.max(1, layer.width() * layer.frameWidth() / 16);
+						context.drawTexture(layer.texture(), x + layer.x(), y, layer.width(), 16,
+							u, 0, regionWidth, layer.frameHeight(), layer.textureWidth(), layer.textureHeight());
+					}
+				} else if (stacks.size() > 0) {
+					stacks.get(0).render(context.raw(), x, y, delta, -1 ^ RENDER_AMOUNT);
 				}
-			} else if (stacks.size() > 0) {
-				stacks.get(0).render(context.raw(), x, y, delta, -1 ^ RENDER_AMOUNT);
 			}
 		}
 		if ((flags & RENDER_AMOUNT) != 0 && !tagKey.isOf(EmiPort.getFluidRegistry())) {

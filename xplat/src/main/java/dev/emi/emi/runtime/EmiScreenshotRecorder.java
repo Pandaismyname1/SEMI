@@ -2,6 +2,7 @@ package dev.emi.emi.runtime;
 
 import java.io.File;
 import java.util.function.Consumer;
+import net.minecraft.util.Mth;
 import net.minecraft.util.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -18,6 +19,7 @@ import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
+import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.CommandEncoder;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -30,6 +32,10 @@ import dev.emi.emi.mixin.accessor.MinecraftAccessor;
 
 public class EmiScreenshotRecorder {
 	private static final String SCREENSHOTS_DIRNAME = "screenshots";
+	// A render target of width * height * scale^2 pixels is allocated per screenshot, so the
+	// configured scale is bounded rather than trusted
+	private static final int MIN_SCALE = 1;
+	private static final int MAX_SCALE = 8;
 
 	public static void saveScreenshot(String path, int width, int height, Consumer<GuiGraphicsExtractor> renderer) {
 		if (!RenderSystem.isOnRenderThread()) {
@@ -61,7 +67,7 @@ public class EmiScreenshotRecorder {
 		} else {
 			scale = EmiConfig.recipeScreenshotScale;
 		}
-		scale = Math.max(1, scale);
+		scale = Mth.clamp(scale, MIN_SCALE, MAX_SCALE);
 
 		GameRenderer gameRenderer = client.gameRenderer;
 		if (gameRenderer == null) {
@@ -96,6 +102,9 @@ public class EmiScreenshotRecorder {
 		int windowWidth = window.width;
 		int windowHeight = window.height;
 		int windowGuiScale = window.guiScale;
+		// Changing the gui scale invalidates the GUI item atlas, so it is only touched when the
+		// screenshot actually wants a different one
+		boolean guiScaleChanged = windowGuiScale != scale;
 		GpuBufferSlice backupProj = RenderSystem.getProjectionMatrixBuffer();
 		ProjectionType backupProjType = RenderSystem.getProjectionType();
 		boolean rendered = false;
@@ -106,12 +115,21 @@ public class EmiScreenshotRecorder {
 			((MinecraftAccessor) client).emi$setMainRenderTarget(framebuffer);
 			window.width = framebuffer.width;
 			window.height = framebuffer.height;
-			window.guiScale = scale;
+			if (guiScaleChanged) {
+				window.guiScale = scale;
+			}
 
 			// GuiRenderer never clears, and unlike the main target this one is cleared to a fully
 			// transparent black so that the recipe keeps its transparent background
 			RenderSystem.getDevice().createCommandEncoder()
 				.clearColorAndDepthTextures(colorTexture, 0, framebuffer.getDepthTexture(), 1.0);
+
+			// GuiRenderer draws with whatever lightmap GameRenderer.lightmap() hands out, which is
+			// the world's unless the flat UI one is selected. GameRenderer.render sets both of
+			// these around its own GUI pass; outside it, items would be lit by the player's
+			// surroundings instead
+			gameRenderer.getLighting().setupFor(Lighting.Entry.ITEMS_3D);
+			((GameRendererAccessor) gameRenderer).emi$setUseUiLightmap(true);
 
 			guiRenderer.render(fogRenderer.getBuffer(FogRenderer.FogMode.NONE));
 			guiRenderer.endFrame();
@@ -119,10 +137,13 @@ public class EmiScreenshotRecorder {
 		} catch (Throwable t) {
 			EmiLog.error("Failed to render recipe screenshot", t);
 		} finally {
+			((GameRendererAccessor) gameRenderer).emi$setUseUiLightmap(false);
 			((MinecraftAccessor) client).emi$setMainRenderTarget(mainTarget);
 			window.width = windowWidth;
 			window.height = windowHeight;
-			window.guiScale = windowGuiScale;
+			if (guiScaleChanged) {
+				window.guiScale = windowGuiScale;
+			}
 			RenderSystem.setProjectionMatrix(backupProj, backupProjType);
 			state.reset();
 		}
