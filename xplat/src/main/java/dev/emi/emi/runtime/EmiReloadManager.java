@@ -38,7 +38,16 @@ public class EmiReloadManager {
 	private static volatile boolean clear = false, restart = false;
 	// 0 - empty, 1 - reloading, 2 - loaded, -1 - error
 	private static volatile int status = 0;
-	private static Thread thread;
+	private static volatile Thread thread;
+	/** Server data outside the tags/recipes handshake changed and no reload has used it yet. */
+	private static volatile boolean pendingDataChange = false;
+	/**
+	 * How long a pending data change waits for a handshake to pick it up before reloading on its
+	 * own. NeoForge sends the values before the tags and recipes, Fabric after them, so the wait
+	 * costs nothing on NeoForge and two seconds on Fabric, where a reload is due anyway.
+	 */
+	private static final int DATA_CHANGE_GRACE_TICKS = 40;
+	private static volatile int dataChangeGrace = 0;
 	public static volatile Component reloadStep = EmiPort.literal("");
 	public static volatile long reloadWorry = Long.MAX_VALUE;
 
@@ -72,29 +81,53 @@ public class EmiReloadManager {
 	 * A change to server data that is not one of the two halves of the tags/recipes handshake, such
 	 * as new number provider values after a datapack reload.
 	 * <p>
-	 * This must never touch {@link #loadedResourcesMask}: that mask is the handshake's own state,
-	 * and adding a bit to it out of band would leave it stuck and throw every later reload off by
-	 * one half. When a handshake is in progress the reload it ends with picks the new data up by
-	 * itself, because the data is stored before this is called; when a reload is already running,
-	 * {@link #reload()} restarts it, so a change that arrives mid-reload is never missed.
+	 * This never reloads by itself, and never touches {@link #loadedResourcesMask}: that mask is
+	 * the handshake's own state, and adding a bit to it out of band would leave it stuck and throw
+	 * every later reload off by one half. It only records that a reload is owed. The data is stored
+	 * before this is called, so a handshake that follows — which is the normal case on NeoForge,
+	 * where the values are sent before the tags and recipes — reloads with the new data anyway and
+	 * clears the debt; only when no handshake turns up does {@link #clientTick()} pay it.
 	 */
 	public static synchronized void reloadForDataChange() {
+		pendingDataChange = true;
+		dataChangeGrace = DATA_CHANGE_GRACE_TICKS;
+		EmiLog.info("Server data changed, waiting to see whether a reload is already coming");
+	}
+
+	/**
+	 * Pays off a pending data change once it is clear that no handshake is going to. Called once per
+	 * client tick by both loaders.
+	 */
+	public static synchronized void clientTick() {
+		if (!pendingDataChange) {
+			return;
+		}
 		if (loadedResourcesMask != 0) {
-			EmiLog.info("Server data changed, the pending reload will use it");
+			// A handshake is under way; the reload it ends with consumes the change.
+			dataChangeGrace = DATA_CHANGE_GRACE_TICKS;
 			return;
 		}
-		if (status == 0) {
-			// Nothing has been loaded for this connection yet, so the reload that follows the
-			// handshake is the first one and will use the new data anyway.
+		if (dataChangeGrace > 0) {
+			dataChangeGrace--;
 			return;
 		}
-		EmiLog.info("Server data changed, reloading EMI");
+		pendingDataChange = false;
+		// status is not per connection and the worker may still be finishing after a disconnect,
+		// so the level is what says whether a reload can do anything at all. It is null on the
+		// title screen, between a disconnect and the next join, and while the server has sent the
+		// client back to the configuration phase.
+		if (Minecraft.getInstance().level == null || status == 0) {
+			return;
+		}
+		EmiLog.info("Server data changed and no reload followed, reloading EMI");
 		reload();
 	}
 
 	public static void clear() {
 		synchronized (EmiReloadManager.class) {
 			loadedResourcesMask = 0;
+			pendingDataChange = false;
+			dataChangeGrace = 0;
 			clear = true;
 			status = 0;
 			reloadWorry = Long.MAX_VALUE;
@@ -110,6 +143,10 @@ public class EmiReloadManager {
 	
 	public static void reload() {
 		synchronized (EmiReloadManager.class) {
+			// Whatever this reload was asked for, it reads the current data, so any change waiting
+			// for a reload is paid off by it.
+			pendingDataChange = false;
+			dataChangeGrace = 0;
 			step(EmiPort.literal("Starting Reload"));
 			status = 1;
 			if (thread != null && thread.isAlive()) {
@@ -141,6 +178,19 @@ public class EmiReloadManager {
 		return status;
 	}
 	
+	/**
+	 * Whether the worker should go round again. Clearing {@code thread} has to happen under the
+	 * same lock that reads it, or a {@link #reload()} landing in the gap would set {@code restart}
+	 * on a thread that is about to die and be lost.
+	 */
+	private static synchronized boolean restartOrFinish() {
+		if (restart) {
+			return true;
+		}
+		thread = null;
+		return false;
+	}
+
 	private static class ReloadWorker implements Runnable {
 
 		@Override
@@ -258,7 +308,14 @@ public class EmiReloadManager {
 					EmiScreenManager.forceRecalculate();
 					EmiReloadLog.bake();
 					EmiLog.info("Reloaded EMI in " + (System.currentTimeMillis() - reloadStart) + "ms");
-					status = 2;
+					// Under the lock and only when nothing has asked for a restart or a clear since:
+					// clear() resets the status to 0 while this loop is in its unchecked tail, and
+					// publishing 2 over that would leak "loaded" onto the title screen.
+					synchronized (EmiReloadManager.class) {
+						if (!restart && !clear) {
+							status = 2;
+						}
+					}
 				} catch (Throwable e) {
 					EmiReloadLog.warn("Critical error occured during reload:", e);
 					status = -1;
@@ -266,8 +323,7 @@ public class EmiReloadManager {
 						restart = true;
 					}
 				}
-			} while (restart);
-			thread = null;
+			} while (restartOrFinish());
 		}
 
 		private final static int entrypointPriority(EmiPluginContainer container) {

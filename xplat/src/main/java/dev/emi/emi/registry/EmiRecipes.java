@@ -297,12 +297,17 @@ public class EmiRecipes {
 		public void run() {
 			long startTime = System.currentTimeMillis();
 			Manager manager = new Manager(categories, workstations, recipes, true);
-			if (activeWorker == this) {
-				long endTime = System.currentTimeMillis();
-				EmiLog.info("Baked recipes after reload in " + (endTime - startTime) + "ms");
-				EmiRecipes.manager = manager;
+			// A worker that has been superseded must publish nothing and, above all, must not clear
+			// the newer worker's slot: doing so unconditionally would make the newer bake skip its
+			// own publish and leave EMI showing no recipes at all.
+			synchronized (EmiRecipes.class) {
+				if (activeWorker == this) {
+					long endTime = System.currentTimeMillis();
+					EmiLog.info("Baked recipes after reload in " + (endTime - startTime) + "ms");
+					EmiRecipes.manager = manager;
+					activeWorker = null;
+				}
 			}
-			setWorker(null);
 		}
 	}
 }

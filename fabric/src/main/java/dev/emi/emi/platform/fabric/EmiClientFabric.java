@@ -17,6 +17,7 @@ import dev.emi.emi.platform.EmiClient;
 import dev.emi.emi.runtime.EmiLog;
 import dev.emi.emi.runtime.EmiReloadManager;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientConfigurationNetworking;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -68,6 +69,7 @@ public class EmiClientFabric implements ClientModInitializer {
 		// EmiReloadManager decides whether a change is worth a reload: none is due before EMI has
 		// loaded anything (a join) or while it is waiting for the rest of the server's data.
 		ContextIntValues.setChangeListener(EmiReloadManager::reloadForDataChange);
+		ClientTickEvents.END_CLIENT_TICK.register(client -> EmiReloadManager.clientTick());
 		ClientConfigurationNetworking.registerGlobalReceiver(EmiNetwork.CONTEXT_INT_VALUES,
 			(payload, context) -> context.client().execute(() -> ContextIntValues.set(payload.values())));
 		ClientPlayNetworking.registerGlobalReceiver(EmiNetwork.CONTEXT_INT_VALUES,
