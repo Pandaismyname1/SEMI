@@ -14,7 +14,7 @@ modId = "emi"
 version = "${version}"
 displayName = "SEMI"
 authors = "Emi"
-credits = "SEMI is an unofficial continuation of EMI by Emi (emilyploszaj) and contributors. The 26.1 port builds on link-fgfgui's community port. Maintained by Pandaismyname1 with AI assistance."
+credits = "SEMI is an unofficial continuation of EMI by Emi (emilyploszaj) and contributors. The 26.1 and 26.2 ports build on link-fgfgui's community port. Maintained by Pandaismyname1 with AI assistance."
 displayURL = "https://github.com/Pandaismyname1/SEMI"
 description = '''
 Seasonal EMI, an unofficial continuation of EMI: a featureful and accessible item and recipe viewer

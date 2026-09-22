@@ -11,7 +11,7 @@
 ## E3. Name the new vanilla 26.2 item tags instead of excluding them
 - **Decision:** add English names (`tag.minecraft.*` keys, the style upstream uses for post-1.20 tags) for the 17 item tags vanilla 26.2 introduced: `concrete`, `concrete_powders`, `glazed_terracotta`, `sulfur_cube_food`, `sulfur_cube_swallowable` and the twelve `sulfur_cube_archetype/*` tags.
 - **Why:** EMI logs every displayed tag without a translation as a reload warning (17 warnings on both loaders in the dev client), and upstream's convention is to translate vanilla tags, including behaviour tags such as `axolotl_tempt_items`, rather than to exclude them. Excluding the sulfur cube tags would hide them from `#` searches for no gain.
-- **Double-check:** the archetype names ("Bouncy Sulfur Cube Blocks", …) are my wording; vanilla has no display names for tags. Rename freely.
+- **Double-check:** the archetype names ("Bouncy Sulfur Cube Blocks", …, "Sulfur Cube Swallowable Blocks") are my wording; vanilla has no display names for tags. Rename freely.
 
 ## E4. Fabric dedicated server: verified up to the EULA gate only
 - **Decision:** the Fabric server run stops at "You need to agree to the EULA" (`fabric/run/eula.txt` stays `eula=false`), exactly as in the 26.1 run. Accepting the Minecraft EULA is the user's call, so it is not done in an unattended run. NeoForge's dev server run does not gate on the EULA and is run to "Done".
@@ -35,3 +35,7 @@
 - Removed the NeoForge client-setup line that pre-built all `NeoForgeRenderTypes` into `StackBatcher.EXTRA_RENDER_LAYERS`: the batcher has been inert since 26.1 and nothing reads the list on the live path.
 - `EmiPortClient.focus` now also null-checks `Minecraft.gui` (a final field assigned during the `Minecraft` constructor) before reading the current screen from it.
 - Findings 6 to 8 (the `partialTick` value now being the tick delta, the screenshot fog uniform inheriting the previous frame's value, the `[26.2,27)` NeoForge range) were reviewed and left as they are: the delta is never used for interpolation, vanilla's own screenshot path has the same fog dependency, and the Minecraft range gates the loader version.
+
+## E9. Review round 2: wording and tidiness only
+- Round 2 (fix commits `7db7d9d6`, `decdf6c6`) confirmed every fix and found no defect. It established that the GUI pipelines in 26.2 carry no `DepthStencilState` at all (depth test and write disabled), which is why the recipe screenshot rendered correctly with both `1.0` and `0.0`; `0.0` stays because it is the value every vanilla depth clear before a GUI or item pass uses, and it is the safe one should a depth-tested pipeline ever draw into the target. The recorder comment says so now.
+- Applied the minor items: the NeoForge `credits` line and the changelog again credit the community port for 26.2, the 17 new language keys sit in alphabetical order inside the `tag.minecraft.*` block, `sulfur_cube_swallowable` is "Sulfur Cube Swallowable Blocks", and a leftover blank line went.

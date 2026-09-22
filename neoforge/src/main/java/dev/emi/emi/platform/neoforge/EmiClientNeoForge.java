@@ -1,6 +1,5 @@
 package dev.emi.emi.platform.neoforge;
 
-
 import dev.emi.emi.EmiPort;
 import dev.emi.emi.data.EmiData;
 import dev.emi.emi.network.EmiNetwork;

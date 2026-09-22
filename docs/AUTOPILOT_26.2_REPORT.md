@@ -18,7 +18,7 @@ Branch `26.2` of <https://github.com/Pandaismyname1/SEMI>, based on `26.1`. Cont
 | NeoForge 26.2 client, same world | one EMI reload, 3805 recipes (same 4-recipe gap to Fabric as on 26.1), no errors; sidebars at the correct position with the new `Render.Foreground` hook, search → torch recipe, recipe screenshot (`neoforge/run/screenshots/emi/recipes/minecraft/torch.png`); second run after the review fixes (new `bannerFile`, removed setup line, depth clear): loads, zero tag warnings, torch recipe screenshot correct |
 | Fabric dedicated server | loads EMI 1.1.24-SNAPSHOT+26.2+fabric with 44 mods, mixin subsystem up, initializer runs; stops at the Minecraft EULA gate (not accepted on the user's behalf, decision E4) |
 | NeoForge dedicated server | loads SEMI 1.1.24-SNAPSHOT+26.2+neoforge, upgrades the world, reaches "Done (0.220s)", no errors; stopped by the run timeout |
-| Delta review | round 1: 8 findings, 5 fixed, 3 informational; round 2: see below |
+| Delta review | round 1: 8 findings, 5 fixed, 3 informational; round 2: no defects, 5 wording/tidiness items applied |
 
 ## Delta review
 **Round 1** (adversarial review of the port commits `9c24aade`, `c4eced31`, `6e978064` against the 26.2 bytecode, the NeoForge 26.2.0.88 sources and the JEI 30.35 API): 8 findings, none a crash.
@@ -30,10 +30,10 @@ Branch `26.2` of <https://github.com/Pandaismyname1/SEMI>, based on `26.1`. Cont
 6.–8. Informational (`partialTick` semantics, screenshot fog uniform, NeoForge version range): reviewed, no change (E8).
 Everything else the reviewer checked came back clean: every mixin target, accessor, access widener and access transformer against the 26.2 bytecode; the `Gui` moves; the screenshot recorder's texture, buffer and readback path; the `Language`/`TextColor`/`ColorCollection`/`Pair` replacements; `StackBatcher` being inert on every live path; the JEI 30.35 API being byte-identical to 29.40 (209 classes, `javap` diff empty); vanilla GUI sprites (29 additions, no removals); loader metadata ranges.
 
-**Round 2** (review of the fix commits `7db7d9d6` and `decdf6c6`): see below.
+**Round 2** (review of the fix commits `7db7d9d6` and `decdf6c6`, verified against the 26.2 client jar, the NeoForge 26.2.0.88 universal jar and the packaged jars): no defects. It confirmed the depth clear (and explained why both values rendered: the GUI pipelines have no depth state), the `bannerFile`/`iconFile` keys and the banner scaling path, the dead-code removal, the `Minecraft.gui` guard, the language file (valid JSON, no duplicate keys, every non-excluded vanilla 26.2 item tag now has a name) and every version, jar name and range quoted in the README, changelog and this report. Its five minor wording/tidiness items were applied (decision E9). Two consecutive rounds without a code defect: the review loop is closed.
 
 ## Please double-check
-- The tag names in decision E3 are my wording.
+- The tag names in decision E3 are my wording (round 2 agreed they are defensible).
 - The recipe screenshot path was verified on both loaders in the dev client; the NeoForge sidebar position (the fork dropped the `leftPos/topPos` translate when moving to `ScreenEvent.Render.Foreground`) was verified visually.
 
 ## Needs you

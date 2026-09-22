@@ -120,11 +120,12 @@ public class EmiScreenshotRecorder {
 				window.guiScale = scale;
 			}
 
-			// GuiRenderer never clears, and unlike the main target this one is cleared to a fully
-			// transparent black so that the recipe keeps its transparent background. The depth
-			// clear value is the one GameRenderer.render uses before its own GUI pass: 26.2 draws
-			// the GUI with a reversed depth range (DepthStencilState.DEFAULT is GREATER_THAN_OR_EQUAL),
-			// so the "far" value is 0.0, not 1.0
+			// GuiRenderer only clears depth itself in its after-blur path, and unlike the main target
+			// this one is cleared to a fully transparent black so that the recipe keeps its
+			// transparent background. The depth clear value is the one GameRenderer.render uses
+			// before its own GUI pass: 26.2 uses a reversed depth range (DepthStencilState.DEFAULT
+			// compares with GREATER_THAN_OR_EQUAL), so the "far" value is 0.0. The GUI pipelines
+			// themselves carry no depth state, so today the value is inert either way
 			RenderSystem.getDevice().createCommandEncoder()
 				.clearColorAndDepthTextures(colorTexture, new Vector4f(0.0f, 0.0f, 0.0f, 0.0f), framebuffer.getDepthTexture(), 0.0);
 
