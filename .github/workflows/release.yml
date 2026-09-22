@@ -11,7 +11,7 @@ on:
 # Project ids on each platform. Fill these in once the SEMI project pages exist.
 env:
   MODRINTH_ID: ""
-  CURSEFORGE_ID: ""
+  CURSEFORGE_ID: "1706958"
 
 permissions:
   contents: write
