@@ -2,6 +2,7 @@ package dev.emi.emi;
 
 import dev.emi.emi.config.EmiConfig;
 import dev.emi.emi.mixin.accessor.SmithingTransformRecipeAccessor;
+import dev.emi.emi.mixin.accessor.TransmuteRecipeAccessor;
 import dev.emi.emi.runtime.EmiLog;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
@@ -23,12 +24,14 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.SingleItemRecipe;
 import net.minecraft.world.item.crafting.SingleRecipeInput;
 import net.minecraft.world.item.crafting.SmithingRecipe;
 import net.minecraft.world.item.crafting.SmithingRecipeInput;
 import net.minecraft.world.item.crafting.SmithingTransformRecipe;
+import net.minecraft.world.item.crafting.TransmuteRecipe;
 import net.minecraft.world.item.crafting.display.SlotDisplayContext;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.level.block.entity.BannerPatternLayers;
@@ -40,6 +43,7 @@ import net.minecraft.world.level.storage.loot.providers.number.ints.Quotient;
 import net.minecraft.world.level.storage.loot.providers.number.ints.ResolvableInt;
 import net.minecraft.world.level.storage.loot.providers.number.ints.WeightedListValue;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 import java.util.stream.Stream;
@@ -58,7 +62,12 @@ public class EmiPortClient {
     }
 
     public static ItemStack getOutput(Recipe<?> recipe) {
-        if (recipe instanceof CraftingRecipe crafting) {
+        if (recipe instanceof TransmuteRecipe transmute) {
+            ItemStack stack = getTransmuteOutput(transmute);
+            if (!stack.isEmpty()) {
+                return stack;
+            }
+        } else if (recipe instanceof CraftingRecipe crafting) {
             try {
                 ItemStack stack = crafting.assemble(CraftingInput.EMPTY);
                 if (!stack.isEmpty()) {
@@ -106,6 +115,32 @@ public class EmiPortClient {
         if (EmiConfig.devMode) {
             EmiLog.error("Exception assembling output of " + recipe.getClass().getName(), e);
         }
+    }
+
+    /**
+     * A transmute recipe reads its result off the stack that matched its input ingredient, and
+     * counts the stacks that matched its material ingredient, so it cannot be assembled from an
+     * empty grid: a result of {@code TransmuteResult.KEEP_INPUT_ITEM} (map cloning) would resolve
+     * to air and throw. Assemble it against one input stack plus one material stack instead, which
+     * is also what makes the count and the copied components come out right.
+     */
+    private static ItemStack getTransmuteOutput(TransmuteRecipe transmute) {
+        try {
+            TransmuteRecipeAccessor accessor = (TransmuteRecipeAccessor) transmute;
+            ItemStack input = firstStack(accessor.emi$getInput());
+            if (input.isEmpty()) {
+                return ItemStack.EMPTY;
+            }
+            ItemStack material = firstStack(accessor.emi$getMaterial());
+            return transmute.assemble(CraftingInput.of(2, 1, List.of(input, material)));
+        } catch (Exception e) {
+            logOutputFailure(transmute, e);
+            return ItemStack.EMPTY;
+        }
+    }
+
+    private static ItemStack firstStack(Ingredient ingredient) {
+        return ingredient.items().findFirst().map(h -> new ItemStack(h.value())).orElse(ItemStack.EMPTY);
     }
 
     public static int getGuiScale(Minecraft client) {
