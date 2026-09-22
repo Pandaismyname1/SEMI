@@ -36,10 +36,10 @@ import org.jetbrains.annotations.Nullable;
 import dev.emi.emi.EmiPort;
 import dev.emi.emi.EmiPortClient;
 import dev.emi.emi.api.EmiRegistry;
-import dev.emi.emi.data.ContextIntValues;
 import dev.emi.emi.api.stack.EmiIngredient;
 import dev.emi.emi.api.stack.EmiStack;
 import dev.emi.emi.api.stack.FluidEmiStack;
+import dev.emi.emi.data.ContextIntValues;
 import dev.emi.emi.recipe.EmiBrewingRecipe;
 import dev.emi.emi.registry.EmiPluginContainer;
 import dev.emi.emi.runtime.EmiLog;
@@ -240,14 +240,13 @@ public abstract class EmiAgnos {
 				}
 			}
 		}
-		if (unresolved > 0 && source.isEmpty()) {
+		if (unresolved > 0) {
 			EmiReloadLog.warn("The burn time of " + unresolved + " fuels is unknown, so they are not listed"
-				+ " as fuels. " + ContextIntValues.MISSING_NUMBER_PROVIDERS);
+				+ " as fuels." + (source.isEmpty() ? " " + ContextIntValues.MISSING_NUMBER_PROVIDERS : ""));
 		}
 		ContextIntValues.warnUnhandled(unhandledTypes, "fuel burn times");
 		return fuelMap;
 	}
-
 
 	public static boolean isEnchantable(ItemStack stack, Enchantment enchantment) {
 		return delegate.isEnchantableAgnos(stack, enchantment);
