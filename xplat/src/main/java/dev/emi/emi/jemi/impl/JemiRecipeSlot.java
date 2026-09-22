@@ -8,6 +8,8 @@ import java.util.stream.Stream;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Unmodifiable;
 
+import com.google.common.collect.Lists;
+
 import dev.emi.emi.api.stack.EmiIngredient;
 import dev.emi.emi.api.stack.TagEmiIngredient;
 import dev.emi.emi.api.stack.EmiStack;
@@ -39,6 +41,7 @@ public class JemiRecipeSlot implements IRecipeSlotDrawable {
 	public final Map<IIngredientType<?>, IngredientRenderer<?>> renderers;
 	public final TankInfo tankInfo;
 	public final EmiIngredient stack;
+	public final List<JemiIngredientAcceptor> displayOverrides = Lists.newArrayList();
 	public SlotWidget widget;
 	public int highlight = 0;
 
@@ -103,9 +106,19 @@ public class JemiRecipeSlot implements IRecipeSlotDrawable {
 
 	@Override
 	public Optional<ITypedIngredient<?>> getDisplayedIngredient() {
-		return JemiUtil.getTyped(stack.getEmiStacks().get(0));
+		List<EmiStack> stacks = stack.getEmiStacks();
+		if (stacks.isEmpty()) {
+			return Optional.empty();
+		}
+		return JemiUtil.getTyped(stacks.get(0));
 	}
 
+	/**
+	 * Aliases {@link #getAllIngredients()}: EMI cycles through every stack of an
+	 * ingredient rather than displaying a single one, and this does <em>not</em>
+	 * honour EMI's stack visibility filter, so a JEI plugin may see ingredients
+	 * here that EMI itself would hide.
+	 */
 	@Override
 	public Stream<ITypedIngredient<?>> getDisplayedIngredients() {
 		return getAllIngredients();
@@ -134,6 +147,12 @@ public class JemiRecipeSlot implements IRecipeSlotDrawable {
 		this.highlight = color;
 	}
 
+	/**
+	 * Unlike upstream, which ignored this, the position is honoured: JEI widgets such as
+	 * the scroll grid lay their slots out by calling this, and {@link JemiRecipe} builds
+	 * the {@link dev.emi.emi.jemi.widget.JemiSlotWidget}s only after extras have run so
+	 * they pick up the final coordinates.
+	 */
 	@Override
 	public void setPosition(int xPos, int yPos) {
 		this.x = xPos;
@@ -142,58 +161,63 @@ public class JemiRecipeSlot implements IRecipeSlotDrawable {
 
 	@Override
 	public Rect2i getAreaIncludingBackground() {
+		if (widget != null) {
+			Bounds b = widget.getBounds();
+			return new Rect2i(b.x(), b.y(), b.width(), b.height());
+		}
 		int size = large ? 26 : 18;
 		return new Rect2i(x - 1, y - 1, size, size);
 	}
 
 	@Override
 	public boolean isMouseOver(double mouseX, double mouseY) {
-		if (widget != null) {
-			Bounds b = widget.getBounds();
-			return mouseX >= b.x() && mouseX < b.x() + b.width()
-				&& mouseY >= b.y() && mouseY < b.y() + b.height();
-		}
-		return false;
+		return widget != null && widget.getBounds().contains((int) mouseX, (int) mouseY);
 	}
 
+	// draw/drawHoverOverlays/drawTooltip/getTooltip were all unimplemented upstream too
+	// ("I don't think I will"). EMI draws slot contents and tooltips through
+	// JemiSlotWidget, so JEI must not draw them a second time.
 	@Override
 	public void draw(GuiGraphicsExtractor raw) {
-		// EMI renders slot contents via JemiSlotWidget; nothing to do here.
 	}
 
 	@Override
 	public void draw(GuiGraphicsExtractor raw, boolean highlight) {
-		// EMI renders slot contents via JemiSlotWidget; nothing to do here.
 	}
 
 	@Override
 	public void drawHoverOverlays(GuiGraphicsExtractor raw) {
-		// No-op
 	}
 
 	@Override
 	public List<Component> getTooltip() {
-		return List.of();
+		// Unimplemented
+		// Mutable because who knows
+		return Lists.newArrayList();
 	}
 
 	@Override
 	public void getTooltip(ITooltipBuilder tooltipBuilder) {
-		// No-op; EMI handles tooltips via JemiSlotWidget.
+		// Unimplemented
 	}
 
 	@Override
 	public void drawTooltip(GuiGraphicsExtractor raw, int mouseX, int mouseY) {
-		// No-op
+		// Unimplemented
 	}
 
 	@Override
 	public IIngredientAcceptor<?> createDisplayOverrides() {
-		return new JemiIngredientAcceptor(role);
+		// "Implemented" but also just ignored, as upstream: the acceptor is recorded so
+		// plugins get a usable builder back, but EMI always renders this slot's stack.
+		JemiIngredientAcceptor acceptor = new JemiIngredientAcceptor(role);
+		displayOverrides.add(acceptor);
+		return acceptor;
 	}
 
 	@Override
 	public void clearDisplayOverrides() {
-		// No-op
+		displayOverrides.clear();
 	}
 
 	public static record OffsetDrawable(IDrawable drawable, int xOff, int yOff){

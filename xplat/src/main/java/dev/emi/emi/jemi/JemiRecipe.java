@@ -1,7 +1,6 @@
 package dev.emi.emi.jemi;
 
 import com.google.common.collect.Lists;
-import com.mojang.blaze3d.platform.InputConstants;
 import dev.emi.emi.EmiPort;
 import dev.emi.emi.EmiUtil;
 import dev.emi.emi.api.recipe.EmiRecipe;
@@ -21,31 +20,25 @@ import dev.emi.emi.jemi.impl.JemiRecipeSlotsView;
 import dev.emi.emi.jemi.impl.JemiTooltipBuilder;
 import dev.emi.emi.jemi.impl.extras.JemiRecipeExtrasBuilder;
 import dev.emi.emi.jemi.impl.extras.JemiScrollGridWidget;
+import dev.emi.emi.jemi.impl.extras.JemiTextWidget;
 import dev.emi.emi.jemi.impl.extras.JemiWidgetBuilder;
 import dev.emi.emi.jemi.widget.JemiSlotWidget;
 import dev.emi.emi.jemi.widget.JemiTankWidget;
 import dev.emi.emi.runtime.EmiDrawContext;
 import dev.emi.emi.runtime.EmiLog;
 import dev.emi.emi.runtime.ProxyRecipeManager;
-import dev.emi.emi.screen.EmiScreenManager;
 import mezz.jei.api.gui.IRecipeLayoutDrawable;
-import mezz.jei.api.gui.builder.IRecipeSlotBuilder;
-import mezz.jei.api.gui.drawable.IDrawable;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
-import mezz.jei.api.gui.inputs.IJeiUserInput;
 import mezz.jei.api.recipe.RecipeIngredientRole;
 import mezz.jei.api.recipe.category.IRecipeCategory;
-import mezz.jei.api.recipe.types.IRecipeType;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 public class JemiRecipe<T> implements EmiRecipe {
 	public List<EmiIngredient> inputs = Lists.newArrayList();
@@ -57,7 +50,6 @@ public class JemiRecipe<T> implements EmiRecipe {
 	public T recipe;
 	public boolean allowTree = true;
 	public IRecipeSlotsView cachedSlotsView;
-	public Set<String> catalystSlotNames;
 
 	public JemiRecipe(EmiRecipeCategory recipeCategory, IRecipeCategory<T> category, T recipe) {
 		this.recipeCategory = recipeCategory;
@@ -73,26 +65,13 @@ public class JemiRecipe<T> implements EmiRecipe {
 			jrsb.acceptor.coerceStacks(jrsb.richTooltipCallback, jrsb.renderers);
 		}
 		this.cachedSlotsView = new JemiRecipeSlotsView(builder.slots.stream().map(JemiRecipeSlot::new).toList());
-		catalystSlotNames = JemiCatalystDetector.detectCatalystSlotNames(recipe);
-		Set<JemiIngredientAcceptor> catalystAcceptors = new HashSet<>();
-		if (!catalystSlotNames.isEmpty()) {
-			for (JemiRecipeSlotBuilder slot : builder.slots) {
-				if (catalystSlotNames.contains(slot.name.orElse(""))) {
-					catalystAcceptors.add(slot.acceptor);
-				}
-			}
-		}
 		for (JemiIngredientAcceptor acceptor : builder.ingredients) {
 			EmiIngredient stack = acceptor.build();
-			RecipeIngredientRole effectiveRole = acceptor.role;
-			if (catalystAcceptors.contains(acceptor)) {
-				effectiveRole = RecipeIngredientRole.RENDER_ONLY;
-			}
-			if (effectiveRole == RecipeIngredientRole.INPUT) {
+			if (acceptor.role == RecipeIngredientRole.INPUT) {
 				inputs.add(stack);
-			} else if (effectiveRole == RecipeIngredientRole.RENDER_ONLY) {
+			} else if (acceptor.role == RecipeIngredientRole.RENDER_ONLY) {
 				catalysts.add(stack);
-			} else if (effectiveRole == RecipeIngredientRole.OUTPUT) {
+			} else if (acceptor.role == RecipeIngredientRole.OUTPUT) {
 				if (stack.getEmiStacks().size() > 1) {
 					allowTree = false;
 				}
@@ -170,6 +149,9 @@ public class JemiRecipe<T> implements EmiRecipe {
 			for (JemiWidgetBuilder b : extras.widgets) {
 				b.addWidgets(widgets);
 			}
+			for (JemiTextWidget t : extras.textWidgets) {
+				t.addWidgets(widgets);
+			}
 			for (JemiScrollGridWidget grid : extras.scrollGrids) {
 				addScrollGridBackground(widgets, grid);
 			}
@@ -178,15 +160,10 @@ public class JemiRecipe<T> implements EmiRecipe {
 		}
 		if (opt.isPresent()) {
 			for (JemiRecipeSlot slot : slots) {
-				boolean isCatalyst = catalystSlotNames.contains(slot.name.orElse(""));
 				if (slot.tankInfo != null && !slot.getIngredients(JemiUtil.getFluidType()).toList().isEmpty()) {
-					JemiTankWidget widget = new JemiTankWidget(slot, this);
-					if (isCatalyst) widget.catalyst(true);
-					widgets.add(widget);
+					widgets.add(new JemiTankWidget(slot, this));
 				} else {
-					JemiSlotWidget widget = new JemiSlotWidget(slot, this);
-					if (isCatalyst) widget.catalyst(true);
-					widgets.add(widget);
+					widgets.add(new JemiSlotWidget(slot, this));
 				}
 			}
 		}
@@ -245,6 +222,10 @@ public class JemiRecipe<T> implements EmiRecipe {
 			return builder.tooltip;
 		}
 
+		// Upstream routed both of these to IRecipeCategory.handleInput, which JEI 29.40
+		// removed. Its replacement is IRecipeExtrasBuilder.addInputHandler /
+		// addGuiEventListener; JemiRecipeExtrasBuilder collects those but nothing
+		// dispatches to them yet, so plugin-defined clicks and keys are inert.
 		@Override
 		public boolean mouseClicked(int mouseX, int mouseY, int button) {
 			return false;

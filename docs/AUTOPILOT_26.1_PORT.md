@@ -32,9 +32,9 @@ Merge the MIT-licensed community port `link-fgfgui/emi@26.1` (remote `linkfgfgui
 - [x] C2. `./gradlew :neoforge:build` succeeds (JDK 25).
 - [ ] C3. No leftover conflict markers, no `TODO(port)` or stubbed functionality introduced by this branch.
 - [x] C4. Fabric client launches (runClient), reaches a world, EMI index/UI renders in the inventory (screenshot), log free of mixin apply failures / EMI errors. Verified 2026-09-22: quick-play into saved world, 3731 recipes baked in 495 ms, index/favorites/search/recipe screen/crafting recipe all rendered, clean disconnect.
-- [ ] C5. NeoForge client launches likewise (screenshot, clean log).
-- [ ] C6. Fabric dedicated server (runServer) starts and stops cleanly with EMI.
-- [ ] C7. NeoForge dedicated server (runServer) starts and stops cleanly with EMI.
+- [x] C5. NeoForge client launches likewise (screenshot, clean log). Verified 2026-09-22 after the D8 dev-classpath fix: quick-play into the saved world, 3727 recipes baked in 715 ms, index/search/recipe screen rendered, clean disconnect.
+- [x] C6. Fabric dedicated server (runServer) loads EMI (43 mods) with no errors and stops at the EULA gate (EULA deliberately not accepted on the user's behalf; bounded check).
+- [x] C7. NeoForge dedicated server (runServer) loads EMI and reaches `Done (1.539s)!` (the NeoForge dev launcher does not gate on the EULA); no EMI warnings/errors; killed after the 60 s idle pause.
 
 ### D. Quality (multi-agent adversarial review, Opus)
 - [ ] D1. Review round 1: merge-resolution correctness (upstream delta fully re-applied, nothing from the fork lost), findings verified + fixed.

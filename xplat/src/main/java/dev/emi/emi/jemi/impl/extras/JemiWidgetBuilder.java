@@ -18,32 +18,33 @@ public class JemiWidgetBuilder extends JemiPlaceable<IDrawableWidget> implements
 
 	public void addWidgets(WidgetHolder holder) {
 		constructor.accept(this, holder);
+		addTooltip(holder);
 	}
 
 	@Override
 	public IDrawableWidget setTooltip(FormattedText tooltip) {
-		// Unimplemented
+		setTooltipText(tooltip);
 		return this;
 	}
 
 	@Override
 	public IDrawableWidget setTooltip(Collection<? extends FormattedText> tooltip) {
-		// Unimplemented
+		setTooltipText(tooltip);
 		return this;
 	}
 
 	@Override
 	public IDrawableWidget setTooltip(TooltipComponent tooltip) {
-		// Unimplemented
+		setTooltipComponent(tooltip);
 		return this;
 	}
 
 	@Override
 	public IDrawableWidget setTooltip(IRecipeWidgetTooltipCallback tooltipCallback) {
-		// Unimplemented
+		setTooltipCallback(tooltipCallback);
 		return this;
 	}
-	
+
 	public static interface WidgetConstructor {
 
 		void accept(JemiWidgetBuilder builder, WidgetHolder holder);

@@ -266,18 +266,25 @@ public class JemiRecipeHandler<T extends AbstractContainerMenu, R> implements Em
 
 	@SuppressWarnings("unchecked")
 	private R getRawRecipe(EmiRecipe recipe) {
-		if (recipe instanceof JemiRecipe jr && jr.recipe != null) {
-			if (type == null || type.getRecipeClass() == null || type.getRecipeClass().isAssignableFrom(jr.recipe.getClass())) {
-				return (R) jr.recipe;
-			}
-		}
-		if (recipe.getId() != null) {
-			RecipeHolder<?> holder = ProxyRecipeManager.getRecipeEntry(recipe.getId());
-			if (holder != null) {
-				if (type == null || type.getRecipeClass() == null || type.getRecipeClass().isAssignableFrom(holder.getClass())) {
-					return (R) holder;
+		try {
+			if (type != null && type.getRecipeClass() != null) {
+				if (recipe instanceof JemiRecipe jr && jr.recipe != null) {
+					if (type.getRecipeClass().isAssignableFrom(jr.recipe.getClass())) {
+						return type.getRecipeClass().cast(jr.recipe);
+					}
+				}
+				RecipeHolder<?> holder = ProxyRecipeManager.getRecipeEntry(recipe.getId());
+				if (holder != null && type.getRecipeClass().isAssignableFrom(holder.getClass())) {
+					return type.getRecipeClass().cast(holder);
 				}
 			}
+			// Unconditional fallback, as upstream. Many JEI transfer handlers declare a
+			// recipe class that is the Recipe itself rather than the RecipeHolder, so the
+			// check above never matches; handing them the vanilla entry anyway is what
+			// makes transfer work at all. transferRecipe is called inside a try/catch,
+			// so a handler that cannot use the entry just reports an internal error.
+			return (R) ProxyRecipeManager.getRecipeEntry(recipe.getId());
+		} catch (Exception e) {
 		}
 		return null;
 	}

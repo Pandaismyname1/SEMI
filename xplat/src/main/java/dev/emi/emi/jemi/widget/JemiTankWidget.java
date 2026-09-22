@@ -2,8 +2,6 @@ package dev.emi.emi.jemi.widget;
 
 import java.util.List;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-
 import dev.emi.emi.api.recipe.EmiRecipe;
 import dev.emi.emi.api.widget.TankWidget;
 import dev.emi.emi.jemi.impl.JemiRecipeSlot;
@@ -40,10 +38,9 @@ public class JemiTankWidget extends TankWidget {
 	public void drawOverlay(GuiGraphicsExtractor raw, int mouseX, int mouseY, float delta) {
 		EmiDrawContext context = EmiDrawContext.wrap(raw);
 		if (slot.overlay != null) {
-			context.push();
-			context.matrices().translate(0, 0);
+			// Upstream pushed the overlay 200 units forward on the Z axis here. 26.1's
+			// 2-D Matrix3x2fStack has no Z, so draw order alone decides layering.
 			slot.overlay.drawable().draw(context.raw(), x + 1 + slot.overlay.xOff(), y + 1 + slot.overlay.yOff());
-			context.pop();
 		}
 		super.drawOverlay(context.raw(), mouseX, mouseY, delta);
 	}
