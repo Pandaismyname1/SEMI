@@ -1,7 +1,6 @@
 package dev.emi.emi.api.widget;
 
 import java.util.function.BooleanSupplier;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.resources.Identifier;
 

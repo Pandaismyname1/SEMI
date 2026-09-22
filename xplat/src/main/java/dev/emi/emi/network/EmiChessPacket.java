@@ -35,6 +35,18 @@ public abstract class EmiChessPacket implements EmiPacket {
 		return EmiNetwork.CHESS;
 	}
 
+	/**
+	 * Both directions share one payload id and wire format, so loaders that decode a bidirectional
+	 * channel with a single codec use these to get the side's behaviour back.
+	 */
+	public S2C asClientbound() {
+		return this instanceof S2C s2c ? s2c : new S2C(uuid, type, start, end);
+	}
+
+	public C2S asServerbound() {
+		return this instanceof C2S c2s ? c2s : new C2S(uuid, type, start, end);
+	}
+
 	public static class S2C extends EmiChessPacket {
 
 		public S2C(UUID uuid, byte type, byte start, byte end) {

@@ -152,10 +152,12 @@ public class FillRecipeC2SPacket implements EmiPacket {
 					}
 				}
 				if (output != null) {
+					// clicked() takes the menu index, which is what the packet carries, not the
+					// container-local slot.
 					if (action == 1) {
-						handler.clicked(output.getContainerSlot(), 0, ContainerInput.PICKUP, player);
+						handler.clicked(output.index, 0, ContainerInput.PICKUP, player);
 					} else if (action == 2) {
-						handler.clicked(output.getContainerSlot(), 0, ContainerInput.QUICK_MOVE, player);
+						handler.clicked(output.index, 0, ContainerInput.QUICK_MOVE, player);
 					}
 				}
 			} finally {
@@ -166,13 +168,22 @@ public class FillRecipeC2SPacket implements EmiPacket {
 		}
 	}
 
+	/**
+	 * No menu has anywhere near this many slots, but the ranges come from the client, so they are
+	 * bounded to keep a hostile client from making the server expand a range of two billion slots.
+	 */
+	private static final int MAX_SLOTS = 1024;
+
 	private static List<Integer> parseCompressedSlots(FriendlyByteBuf buf) {
 		List<Integer> list = Lists.newArrayList();
 		int amount = buf.readVarInt();
+		if (amount < 0 || amount > MAX_SLOTS) {
+			return null;
+		}
 		for (int i = 0; i < amount; i++) {
 			int low = buf.readVarInt();
 			int high = buf.readVarInt();
-			if (low < 0) {
+			if (low < 0 || high < low || high - low >= MAX_SLOTS || list.size() + (high - low + 1) > MAX_SLOTS) {
 				return null;
 			}
 			for (int j = low; j <= high; j++) {

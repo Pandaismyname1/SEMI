@@ -1358,7 +1358,7 @@ public class EmiScreenManager {
 			return true;
 		} else {
 			if (!is.isEmpty()) {
-				String command = "give @s " + is.getItem();
+				String command = "give @s " + EmiPort.serializeItemArgument(is, client.level.registryAccess());
 				command += " " + amount;
 				if (command.length() < 256) {
 					client.player.connection.sendCommand(command);

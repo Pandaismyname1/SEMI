@@ -22,7 +22,7 @@ logoFile = "icon.png"
 [[dependencies.emi]]
 modId="neoforge"
 type="REQUIRED"
-versionRange="[26.1,)"
+versionRange="[26.1,27)"
 ordering="NONE"
 side="BOTH"
 

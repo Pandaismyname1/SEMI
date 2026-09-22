@@ -44,7 +44,14 @@ public class EmiNeoForge {
 		}
 	}
 
+	/**
+	 * The requested recipe types apply to every player this event syncs to (on /reload that is the
+	 * whole player list), so the full recipe payload can only be skipped when none of them can
+	 * receive EMI's packets at all.
+	 */
 	public void onDatapackSync(OnDatapackSyncEvent event) {
-		event.sendRecipes(BuiltInRegistries.RECIPE_TYPE);
+		if (event.getRelevantPlayers().anyMatch(player -> player.connection.hasChannel(EmiNetwork.PING))) {
+			event.sendRecipes(BuiltInRegistries.RECIPE_TYPE);
+		}
 	}
 }

@@ -2,11 +2,13 @@ package dev.emi.emi.runtime;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import org.jetbrains.annotations.Nullable;
 
 import dev.emi.emi.platform.EmiAgnos;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.Registries;
@@ -26,13 +28,19 @@ import net.minecraft.world.item.crafting.RecipeType;
  * {@link EmiAgnos#getRecipeMap()}.
  */
 public class ProxyRecipeManager {
-	private static Map<Recipe<?>, Identifier> recipeIds = Map.of();
+	private static volatile Map<Recipe<?>, Identifier> recipeIds = Map.of();
+	private static volatile Set<Identifier> bakedIds = Set.of();
 
 	public static boolean isAvailable() {
 		return getRaw() != null;
 	}
 
 	public static @Nullable RecipeMap getRaw() {
+		// Recipes are only meaningful while a world is loaded; a stale map from a previous
+		// session would otherwise be handed a null Level by anything calling Recipe#matches.
+		if (Minecraft.getInstance().level == null) {
+			return null;
+		}
 		return EmiAgnos.getRecipeMap();
 	}
 
@@ -41,15 +49,7 @@ public class ProxyRecipeManager {
 	}
 
 	public static boolean hasId(Identifier id) {
-		return recipeIds.containsValue(id);
-	}
-
-	public static @Nullable Recipe<?> getRecipe(Identifier id) {
-		RecipeHolder<?> entry = getRecipeEntry(id);
-		if (entry == null) {
-			return null;
-		}
-		return entry.value();
+		return bakedIds.contains(id);
 	}
 
 	public static @Nullable RecipeHolder<?> getRecipeEntry(Identifier id) {
@@ -79,12 +79,18 @@ public class ProxyRecipeManager {
 	public static void bakeIds() {
 		RecipeMap raw = getRaw();
 		if (raw == null) {
+			recipeIds = Map.of();
+			bakedIds = Set.of();
 			return;
 		}
 		Map<Recipe<?>, Identifier> ids = new Reference2ObjectOpenHashMap<>();
+		Set<Identifier> present = new ObjectOpenHashSet<>();
 		for (RecipeHolder<?> entry : raw.values()) {
-			ids.put(entry.value(), entry.id().identifier());
+			Identifier id = entry.id().identifier();
+			ids.put(entry.value(), id);
+			present.add(id);
 		}
 		recipeIds = ids;
+		bakedIds = present;
 	}
 }

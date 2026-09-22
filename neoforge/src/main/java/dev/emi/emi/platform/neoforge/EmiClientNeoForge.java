@@ -54,18 +54,20 @@ public class EmiClientNeoForge {
 		EmiData.init(reloader -> event.addListener(reloader.getEmiId(), reloader));
 	}
 
-	public static void tagsReloaded(TagsUpdatedEvent event) {
-		Minecraft client = Minecraft.getInstance();
-		if (client.level != null) {
-			EmiReloadManager.reloadRecipes();
-			EmiReloadManager.reloadTags();
-		}
+	/**
+	 * EMI reloads once both halves of the server's data have arrived, so each event must only
+	 * report its own half. Tags arrive during the configuration phase, before a level exists, so
+	 * this deliberately does not check {@code client.level}; the reload worker checks it instead.
+	 * Only the client-packet variant is listened to, since the integrated server also fires
+	 * {@link TagsUpdatedEvent.ServerDataLoad} on the same bus.
+	 */
+	public static void tagsReloaded(TagsUpdatedEvent.ClientPacketReceived event) {
+		EmiReloadManager.reloadTags();
 	}
 
 	public static void recipesReceived(RecipesReceivedEvent event) {
 		EmiAgnosNeoForge.setReceivedRecipeMap(event.getRecipeMap());
 		EmiReloadManager.reloadRecipes();
-		EmiReloadManager.reloadTags();
 	}
 
 	public static void playerLoggedOut(ClientPlayerNetworkEvent.LoggingOut event) {
