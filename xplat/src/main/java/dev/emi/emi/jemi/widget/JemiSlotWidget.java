@@ -26,8 +26,31 @@ import net.minecraft.network.chat.Component;
 public class JemiSlotWidget extends SlotWidget {
 	public final JemiRecipeSlot slot;
 
+	/**
+	 * The ingredient this slot should render. A JEI plugin can replace what a slot
+	 * <em>displays</em> — without changing the ingredients it logically holds — by
+	 * filling the acceptor handed out by {@link JemiRecipeSlot#createDisplayOverrides()};
+	 * when any of those has content it wins over the slot's own stack.
+	 */
+	public static EmiIngredient displayedStack(JemiRecipeSlot slot) {
+		if (slot.displayOverrides.isEmpty()) {
+			return slot.stack;
+		}
+		List<EmiIngredient> overrides = Lists.newArrayList();
+		for (JemiIngredientAcceptor acceptor : slot.displayOverrides) {
+			EmiIngredient built = acceptor.build();
+			if (!built.isEmpty()) {
+				overrides.add(built);
+			}
+		}
+		if (overrides.isEmpty()) {
+			return slot.stack;
+		}
+		return overrides.size() == 1 ? overrides.get(0) : EmiIngredient.of(overrides);
+	}
+
 	public JemiSlotWidget(JemiRecipeSlot slot, EmiRecipe recipe) {
-		super(slot.stack, slot.x - (slot.large ? 6 : 1) , slot.y - (slot.large ? 6 : 1));
+		super(displayedStack(slot), slot.x - (slot.large ? 6 : 1) , slot.y - (slot.large ? 6 : 1));
 		this.slot = slot;
 		slot.widget = this;
 		if (slot.getRole() == RecipeIngredientRole.OUTPUT) {

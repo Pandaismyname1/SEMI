@@ -206,10 +206,15 @@ public class JemiRecipeSlot implements IRecipeSlotDrawable {
 		// Unimplemented
 	}
 
+	/**
+	 * Unlike upstream, which recorded the acceptor and then ignored it, the overrides
+	 * are honoured: {@link dev.emi.emi.jemi.widget.JemiSlotWidget#displayedStack} renders
+	 * them in place of {@link #stack}. Only overrides registered before the slot widgets
+	 * are built (i.e. during {@code createRecipeExtras}) take effect; the slot's logical
+	 * ingredients, which the transfer handlers see, are deliberately left alone.
+	 */
 	@Override
 	public IIngredientAcceptor<?> createDisplayOverrides() {
-		// "Implemented" but also just ignored, as upstream: the acceptor is recorded so
-		// plugins get a usable builder back, but EMI always renders this slot's stack.
 		JemiIngredientAcceptor acceptor = new JemiIngredientAcceptor(role);
 		displayOverrides.add(acceptor);
 		return acceptor;

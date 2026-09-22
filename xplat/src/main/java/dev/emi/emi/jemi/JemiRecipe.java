@@ -69,7 +69,10 @@ public class JemiRecipe<T> implements EmiRecipe {
 			EmiIngredient stack = acceptor.build();
 			if (acceptor.role == RecipeIngredientRole.INPUT) {
 				inputs.add(stack);
-			} else if (acceptor.role == RecipeIngredientRole.RENDER_ONLY) {
+			} else if (acceptor.role == RecipeIngredientRole.CRAFTING_STATION) {
+				// JEI 29 renamed CATALYST to CRAFTING_STATION, which is what upstream
+				// mapped onto EMI catalysts. RENDER_ONLY is purely decorative and is
+				// deliberately left out of every ingredient list.
 				catalysts.add(stack);
 			} else if (acceptor.role == RecipeIngredientRole.OUTPUT) {
 				if (stack.getEmiStacks().size() > 1) {
@@ -176,10 +179,10 @@ public class JemiRecipe<T> implements EmiRecipe {
 	 * textures underneath the slot widgets.
 	 */
 	private void addScrollGridBackground(WidgetHolder widgets, JemiScrollGridWidget grid) {
-		if (grid.slots == null) {
-			return;
-		}
-		int count = grid.slots.size();
+		// Only the cells the grid actually lays out get a background; EMI cannot
+		// scroll, so anything past the first gridWidth * gridHeight window is not
+		// shown and must not paint a cell outside the grid's bounds.
+		int count = grid.getVisibleSlotCount();
 		int cellSize = 18;
 		for (int i = 0; i < count; i++) {
 			int col = i % grid.gridWidth;

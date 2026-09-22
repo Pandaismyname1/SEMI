@@ -50,16 +50,27 @@ public class JemiScrollGridWidget implements IScrollGridWidget {
 	 * one pixel inside the 18x18 cell background.
 	 */
 	private void layoutSlots() {
-		if (slots == null) {
-			return;
-		}
-		for (int i = 0; i < slots.size(); i++) {
+		int count = getVisibleSlotCount();
+		for (int i = 0; i < count; i++) {
 			int col = i % gridWidth;
 			int row = i / gridWidth;
 			int cellX = x + col * SLOT_SIZE;
 			int cellY = y + row * SLOT_SIZE;
 			slots.get(i).setPosition(cellX + 1, cellY + 1);
 		}
+	}
+
+	/**
+	 * Number of slots that actually fit in the grid. JEI only lays out (and draws)
+	 * the {@code columns * visibleRows} window it is currently scrolled to; EMI has
+	 * no scrolling here, so only the first window is ever shown and everything past
+	 * it is left at its original position rather than spilling out below the grid.
+	 */
+	public int getVisibleSlotCount() {
+		if (slots == null || gridWidth <= 0 || gridHeight <= 0) {
+			return 0;
+		}
+		return Math.min(slots.size(), gridWidth * gridHeight);
 	}
 
 	@Override
@@ -106,11 +117,12 @@ public class JemiScrollGridWidget implements IScrollGridWidget {
 		return new ScreenRectangle(getPosition(), getWidth(), getHeight());
 	}
 
-	/** Number of rows actually occupied by the managed slots. */
+	/** Number of rows actually occupied by the visible slots, never more than {@code gridHeight}. */
 	public int getOccupiedRows() {
-		if (slots == null || slots.isEmpty() || gridWidth <= 0) {
+		int count = getVisibleSlotCount();
+		if (count <= 0) {
 			return 0;
 		}
-		return (slots.size() + gridWidth - 1) / gridWidth;
+		return (count + gridWidth - 1) / gridWidth;
 	}
 }
