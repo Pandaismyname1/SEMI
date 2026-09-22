@@ -26,6 +26,7 @@ public class JemiRecipeExtrasBuilder implements IRecipeExtrasBuilder {
 	public List<IJeiInputHandler> inputHandlers = Lists.newArrayList();
 	public List<IJeiGuiEventListener> eventListeners = Lists.newArrayList();
 	public List<JemiWidgetBuilder> widgets = Lists.newArrayList();
+	public List<JemiTextWidget> textWidgets = Lists.newArrayList();
 	public List<JemiScrollGridWidget> scrollGrids = Lists.newArrayList();
 
 	public JemiRecipeExtrasBuilder(IRecipeSlotDrawablesView slots) {
@@ -58,7 +59,7 @@ public class JemiRecipeExtrasBuilder implements IRecipeExtrasBuilder {
 
 	@Override
 	public IDrawableWidget addTooltipArea(int xPos, int yPos, int width, int height) {
-		// Tooltip content is unimplemented, but the area still has to be a placeable widget
+		// Draws nothing; the tooltip set on the returned widget is what makes the area useful
 		IDrawableWidget widget = addEmi(new JemiWidgetBuilder(width, height, (self, holder) -> {
 		}));
 		return widget.setPosition(xPos, yPos);
@@ -144,7 +145,9 @@ public class JemiRecipeExtrasBuilder implements IRecipeExtrasBuilder {
 
 	@Override
 	public ITextWidget addText(List<FormattedText> text, int maxWidth, int maxHeight) {
-		return new JemiTextWidget(text, maxWidth, maxHeight);
+		JemiTextWidget widget = new JemiTextWidget(text, maxWidth, maxHeight);
+		textWidgets.add(widget);
+		return widget;
 	}
 
 	private IDrawableWidget addEmiTexture(EmiTexture texture) {

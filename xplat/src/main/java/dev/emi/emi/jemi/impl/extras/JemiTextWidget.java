@@ -3,12 +3,17 @@ package dev.emi.emi.jemi.impl.extras;
 import java.util.Collection;
 import java.util.List;
 
+import com.google.common.collect.Lists;
+
+import dev.emi.emi.api.widget.WidgetHolder;
 import mezz.jei.api.gui.placement.HorizontalAlignment;
 import mezz.jei.api.gui.placement.VerticalAlignment;
 import mezz.jei.api.gui.widgets.IRecipeWidgetTooltipCallback;
 import mezz.jei.api.gui.widgets.ITextWidget;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.network.chat.FormattedText;
+import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
 
 public class JemiTextWidget extends JemiPlaceable<ITextWidget> implements ITextWidget {
@@ -24,9 +29,46 @@ public class JemiTextWidget extends JemiPlaceable<ITextWidget> implements ITextW
 		this.text = text;
 	}
 
+	/**
+	 * Lays the text out the way JEI's own {@code TextWidget} does and emits one EMI text
+	 * widget per line: lines are wrapped to {@code width}, clipped to the number that fit
+	 * in {@code height}, then aligned within the widget's area.
+	 */
+	public void addWidgets(WidgetHolder holder) {
+		if (width > 0 && height > 0 && !text.isEmpty()) {
+			Font font = Minecraft.getInstance().font;
+			// JEI hardcodes the 9px vanilla line height here rather than asking the font.
+			int lineHeight = Math.max(1, 9 + spacing);
+			int maxLines = height / lineHeight;
+			if (maxLines * lineHeight + 9 <= height) {
+				maxLines++;
+			}
+			List<FormattedCharSequence> lines = Lists.newArrayList();
+			outer:
+			for (FormattedText line : text) {
+				for (FormattedCharSequence wrapped : font.split(line, width)) {
+					if (lines.size() >= maxLines) {
+						break outer;
+					}
+					lines.add(wrapped);
+				}
+			}
+			if (!lines.isEmpty()) {
+				int textHeight = lineHeight * lines.size() - spacing - 1;
+				int lineY = y + vertical.getYPos(height, textHeight);
+				for (FormattedCharSequence line : lines) {
+					int lineX = x + horizontal.getXPos(width, font.width(line));
+					holder.addText(line, lineX, lineY, color, shadow);
+					lineY += lineHeight;
+				}
+			}
+		}
+		addTooltip(holder);
+	}
+
 	@Override
 	public ITextWidget setFont(Font font) {
-		// Unimplemented
+		// Unimplemented, as upstream: EMI's TextWidget always draws with the client font.
 		return this;
 	}
 
@@ -62,26 +104,26 @@ public class JemiTextWidget extends JemiPlaceable<ITextWidget> implements ITextW
 
 	@Override
 	public ITextWidget setTooltip(FormattedText tooltip) {
-		// Unimplemented
+		setTooltipText(tooltip);
 		return this;
 	}
 
 	@Override
 	public ITextWidget setTooltip(Collection<? extends FormattedText> tooltip) {
-		// Unimplemented
+		setTooltipText(tooltip);
 		return this;
 	}
 
 	@Override
 	public ITextWidget setTooltip(TooltipComponent tooltip) {
-		// Unimplemented
+		setTooltipComponent(tooltip);
 		return this;
 	}
 
 	@Override
 	public ITextWidget setTooltip(IRecipeWidgetTooltipCallback tooltipCallback) {
-		// Unimplemented
+		setTooltipCallback(tooltipCallback);
 		return this;
 	}
-	
+
 }

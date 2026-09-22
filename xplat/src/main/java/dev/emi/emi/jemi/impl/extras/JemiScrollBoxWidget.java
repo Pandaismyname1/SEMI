@@ -9,14 +9,21 @@ import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.network.chat.FormattedText;
 
 public class JemiScrollBoxWidget implements IScrollBoxWidget {
-	private static final int SCROLL_BAR_WIDTH = 18;
+	/** Matches JEI's {@code AbstractScrollWidget.getScrollBoxScrollbarExtraWidth()}. */
+	private static final int SCROLL_BAR_WIDTH = 16;
 	public int x, y;
 	public int width, height;
 
+	/**
+	 * @param width the TOTAL width of the box, scrollbar included. JEI's
+	 *  {@code ScrollBoxRecipeWidget} uses the width passed to
+	 *  {@code addScrollBoxWidget} as its whole area and subtracts the scrollbar to
+	 *  get the content width, so adding the scrollbar here would double count it.
+	 */
 	public JemiScrollBoxWidget(int x, int y, int width, int height) {
 		this.x = x;
 		this.y = y;
-		this.width = width + SCROLL_BAR_WIDTH;
+		this.width = width;
 		this.height = height;
 	}
 

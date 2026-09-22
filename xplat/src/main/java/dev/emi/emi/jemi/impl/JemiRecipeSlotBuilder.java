@@ -183,7 +183,9 @@ public class JemiRecipeSlotBuilder implements IRecipeSlotBuilder {
 	@Override
 	public IRecipeSlotBuilder setFluidRenderer(long capacity, boolean showCapacity, int width, int height,
 			TilingDirection tilingDirection) {
-		// EMI always tiles fluids bottom-up, matching TilingDirection.UP_RIGHT
+		// The tiling direction is ignored: EMI's TankWidget only fills bottom-up and
+		// left-to-right, so only TilingDirection.UP_RIGHT is actually supported.
+		// DOWN_RIGHT, DOWN_LEFT and UP_LEFT will render as UP_RIGHT.
 		return setFluidRenderer(capacity, showCapacity, width, height);
 	}
 
@@ -237,14 +239,19 @@ public class JemiRecipeSlotBuilder implements IRecipeSlotBuilder {
 		return setPosition(xPos, yPos);
 	}
 
+	// JEI's slot builder is always 16x16 regardless of the background: setStandardSlotBackground
+	// and setOutputSlotBackground only attach a drawable that is rendered at a negative
+	// offset around the slot. Reporting 18/26 here skews every setPosition(..., alignment)
+	// call a plugin makes against this slot. `large` is still used by JemiRecipeSlot to pick
+	// the bigger output-slot rendering.
 	@Override
 	public int getWidth() {
-		return large ? 26 : 18;
+		return 16;
 	}
 
 	@Override
 	public int getHeight() {
-		return large ? 26 : 18;
+		return 16;
 	}
 
 	@Override

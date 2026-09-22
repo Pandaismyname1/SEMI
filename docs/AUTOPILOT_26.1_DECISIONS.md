@@ -27,3 +27,21 @@ Each entry: decision, why, alternatives rejected, what a reviewer should double-
 
 ## D-PR. Push/PR target
 - **Decision:** never push to or open a PR against `emilyploszaj/emi` (origin). That is the upstream maintainer's public repo and the port issue there was closed by the maintainer. Push only to a remote the user owns, if one is configured and authenticated; otherwise leave the branch local and say so.
+
+## D7. JEMI: info recipes register synchronously again, with the font work deferred instead
+- **Decision:** `JemiPlugin.addInfoRecipes` registers on the reload thread (as upstream) and wraps each one in a new `dev.emi.emi.jemi.JemiInfoRecipe`, which only builds the real `EmiInfoRecipe` the first time EMI asks for its size or widgets.
+- **Why:** the fork's `Minecraft.getInstance().execute(() -> registry.addRecipe(...))` (commit `fd7eaa89`) ran after the reload had already baked, so JEI "information" recipes were dropped or mutated the recipe lists concurrently. The crash it was working around is real but narrower than it looks: on 26.1 `Font`'s width provider resolves each code point through `GlyphSource.getGlyph`, which returns a *baked* glyph, so measuring text stitches glyph textures and asserts the render thread. `EmiInfoRecipe`'s constructor word-wraps with `Minecraft.getInstance().font.split(...)`, so only that call was unsafe.
+- **Rejected:** copying `EmiInfoRecipe` into `jemi/**`; editing `EmiInfoRecipe` (owned by another agent in this port).
+- **Double-check:** the real fix belongs in `dev.emi.emi.api.recipe.EmiInfoRecipe` — keep the raw `List<Component>` and wrap it behind a lazy accessor used by `getDisplayHeight()`/`addWidgets()`. `EmiRecipes.bake()` builds the data-driven `emi:info` recipes from `EmiData.recipes` on the same worker thread and hits the identical trap.
+
+## D8. JEMI: the fork's AE2 Inscriber catalyst hack is deleted, not generalised
+- **Decision:** `JemiCatalystDetector` (reflection on `appeng.recipes.handlers.InscriberRecipe`) and its use in `JemiRecipe` are gone; slot roles come from JEI again.
+- **Why:** one hardcoded mod class and two hardcoded slot names in a generic adapter. AE2 marks those slots `RecipeIngredientRole.INPUT`; if that is wrong it is an AE2/JEI-side issue.
+- **Double-check:** with AE2 installed, Inscriber "inscribe" recipes now list the press as an input rather than a catalyst again.
+
+## D9. JEMI: behaviour that upstream had and JEI 29.40 no longer offers is left dropped, not re-invented
+- `IRecipeCategory.handleInput` is gone, so `JemiRecipe.JemiWidget.mouseClicked/keyPressed` cannot forward clicks. JEI replaced it with `IRecipeExtrasBuilder.addInputHandler`/`addGuiEventListener`; `JemiRecipeExtrasBuilder` collects both but nothing dispatches to them (upstream never did either). Wiring them needs an `IJeiUserInput`/`InputWithModifiers` implementation — a feature, not a port fix.
+- `IRecipeCategory.getBackground()` is gone, so the background draw upstream did before `category.draw` has no equivalent.
+- `IRecipeSlotTooltipCallback` is gone (only the rich variant remains), so `JemiSlotWidget`'s legacy tooltip branch cannot exist.
+- `EmiDrawContext.enableBlend()`/`resetColor()` are no-ops or per-wrapper on 26.1, and the 2-D `Matrix3x2fStack` has no Z, so upstream's blend/colour/z-offset calls carry no behaviour.
+- `IIngredientManager.getTypedIngredientByUid` is gone; `JemiStackSerializer` scans the type's ingredients instead (same result, O(n) per lookup).

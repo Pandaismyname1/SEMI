@@ -25,7 +25,8 @@ import net.minecraft.client.gui.navigation.ScreenRectangle;
  */
 public class JemiScrollGridWidget implements IScrollGridWidget {
 	private static final int SLOT_SIZE = 18;
-	public static final int SCROLL_BAR_WIDTH = 18;
+	/** Matches JEI's {@code AbstractScrollWidget.getScrollBoxScrollbarExtraWidth()}. */
+	public static final int SCROLL_BAR_WIDTH = 16;
 	public List<IRecipeSlotDrawable> slots;
 	public int x, y;
 	public int gridWidth, gridHeight;
