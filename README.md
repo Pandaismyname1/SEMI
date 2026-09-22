@@ -17,14 +17,15 @@ repositories {
 ```
 
 How EMI gets added to your dependencies varies based on modloader and setup.
-The Gradle property `emi_version` should be something like `1.0.0+1.19.4` with EMI's version and Minecraft's version.
+The Gradle property `emi_version` should be something like `1.1.24+26.1.2` with EMI's version and Minecraft's version.
+EMI for Minecraft 26.1+ requires Java 25.
 Here are common dependency setups for different loaders and build systems.
 
 ```gradle
 dependencies {
-	// Fabric
-	modCompileOnly "dev.emi:emi-fabric:${emi_version}:api"
-	modLocalRuntime "dev.emi:emi-fabric:${emi_version}"
+	// Fabric (26.1+: Minecraft is unobfuscated, so no mod* remapping configurations)
+	compileOnly "dev.emi:emi-fabric:${emi_version}:api"
+	localRuntime "dev.emi:emi-fabric:${emi_version}"
 
 	// Forge (see below block as well if you use Forge Gradle)
 	compileOnly fg.deobf("dev.emi:emi-forge:${emi_version}:api")
@@ -34,10 +35,8 @@ dependencies {
 	compileOnly "dev.emi:emi-neoforge:${emi_version}:api"
 	runtimeOnly "dev.emi:emi-neoforge:${emi_version}" 
 
-	// Architectury
-	modCompileOnly "dev.emi:emi-xplat-intermediary:${emi_version}:api"
-
-	// MultiLoader Template/VanillaGradle
+	// Architectury / MultiLoader Template / VanillaGradle (common project)
+	// 26.1+ only publishes the Mojang-mapped cross-platform artifact
 	compileOnly "dev.emi:emi-xplat-mojmap:${emi_version}:api"
 }
 ```

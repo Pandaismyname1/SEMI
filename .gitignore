@@ -21,5 +21,3 @@ bin/
 run/
 
 .architectury-transformer/
-/temp_extract/
-/temp_*/

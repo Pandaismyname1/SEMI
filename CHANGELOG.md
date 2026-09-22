@@ -1,6 +1,12 @@
-### Tweaks
-* Adjusted mixin notification logging to properly avoid printing when empty.
+### Port
+* Ported to Minecraft 26.1.2 for Fabric and NeoForge (Mojang mappings, Java 25). Built on the MIT community port by link-fgfgui, merged with full attribution.
+* The cross-platform artifact is now published only as `emi-xplat-mojmap`; there is no intermediary artifact for 26.1+ because Minecraft is no longer obfuscated.
+* Recipes are received from the server (Fabric recipe synchronization API / NeoForge `RecipesReceivedEvent`) since the client no longer holds a recipe manager.
 
-### Fixes
-* Fix inconsistent crashes due to mixin order, typically on Fabric 1.19.2 or 1.20.1 #1171
-* Fixed double applications of self-mutation mixins
+### Additions
+* Added a configurable keybind (default Ctrl+Y) to display all recipes.
+* Added `EmiApi.displayRecipesForWorkstation`.
+* Tag search now queries all registries instead of just items.
+
+### Tweaks
+* JEMI (JEI compatibility) updated for the JEI 29.40 API.
