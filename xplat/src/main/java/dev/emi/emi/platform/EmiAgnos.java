@@ -232,17 +232,17 @@ public abstract class EmiAgnos {
 		for (Item item : EmiPort.getItemRegistry()) {
 			CookingFuel fuel = item.components().get(DataComponents.COOKING_FUEL);
 			if (fuel != null) {
-				int time = (int) EmiPortClient.getExpectedValue(fuel.burnTime(), source, unhandledTypes::add);
-				if (time > 0) {
-					fuelMap.put(item, time);
-				} else {
+				Float burnTime = EmiPortClient.getExpectedValue(fuel.burnTime(), source, unhandledTypes::add);
+				if (burnTime == null) {
 					unresolved++;
+				} else if (burnTime > 0) {
+					fuelMap.put(item, burnTime.intValue());
 				}
 			}
 		}
 		if (unresolved > 0) {
 			EmiReloadLog.warn("The burn time of " + unresolved + " fuels is unknown, so they are not listed"
-				+ " as fuels." + (source.isEmpty() ? " " + ContextIntValues.MISSING_NUMBER_PROVIDERS : ""));
+				+ " as fuels." + source.explainMissing());
 		}
 		ContextIntValues.warnUnhandled(unhandledTypes, "fuel burn times");
 		return fuelMap;

@@ -56,11 +56,15 @@ public class EmiMainFabric implements ModInitializer {
 				((FabricServerConfigurationPacketListenerImpl) handler).addTask(new EmiContextValuesTask(handler, server));
 			}
 		});
+		// Computed once per datapack state rather than once per joining client, so the evaluation
+		// and everything it logs happen once.
+		ServerLifecycleEvents.SERVER_STARTED.register(ContextIntValues::refresh);
+		ServerLifecycleEvents.SERVER_STOPPED.register(server -> ContextIntValues.forgetServerValues());
 		ServerLifecycleEvents.END_DATA_PACK_RELOAD.register((server, resourceManager, success) -> {
 			if (!success) {
 				return;
 			}
-			ContextIntValuesS2CPacket packet = new ContextIntValuesS2CPacket(ContextIntValues.computeFor(server));
+			ContextIntValuesS2CPacket packet = new ContextIntValuesS2CPacket(ContextIntValues.refresh(server));
 			for (ServerPlayer player : server.getPlayerList().getPlayers()) {
 				if (ServerPlayNetworking.canSend(player, EmiNetwork.CONTEXT_INT_VALUES)) {
 					ServerPlayNetworking.send(player, packet);

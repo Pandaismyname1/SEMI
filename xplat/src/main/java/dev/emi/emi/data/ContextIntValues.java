@@ -37,7 +37,13 @@ public class ContextIntValues {
 		+ " them out.";
 
 	private static volatile Map<Identifier, Float> received = Map.of();
+	private static volatile boolean anyReceived = false;
 	private static volatile @Nullable Runnable changeListener;
+	/**
+	 * Server side: the values for the datapacks currently loaded, computed once rather than once
+	 * per joining client. Recomputed when the server starts and after every datapack reload.
+	 */
+	private static volatile @Nullable Map<Identifier, Float> cached;
 
 	/**
 	 * The expected value the server computed for a provider, or null when the server sent nothing
@@ -51,8 +57,18 @@ public class ContextIntValues {
 		return received.isEmpty();
 	}
 
+	/**
+	 * Whether a server sent values at all this connection, which is not the same as having any: a
+	 * server running SEMI whose providers EMI cannot estimate sends an empty map, and blaming that
+	 * on "a server without SEMI" would be wrong.
+	 */
+	public static boolean wasReceived() {
+		return anyReceived;
+	}
+
 	public static void clear() {
 		received = Map.of();
+		anyReceived = false;
 	}
 
 	/**
@@ -71,8 +87,9 @@ public class ContextIntValues {
 	 * @return whether the values differ from the ones already stored
 	 */
 	public static boolean set(Map<Identifier, Float> values) {
-		boolean changed = !received.equals(values);
+		boolean changed = !received.equals(values) || !anyReceived;
 		received = Map.copyOf(values);
+		anyReceived = true;
 		if (changed) {
 			Runnable listener = changeListener;
 			if (listener != null) {
@@ -91,10 +108,36 @@ public class ContextIntValues {
 	}
 
 	/**
+	 * The values for the datapacks the server has loaded, computing them if this is the first time
+	 * they are asked for. Every joining client gets the same map, so the work and the logging
+	 * happen once per datapack state rather than once per player.
+	 */
+	public static Map<Identifier, Float> get(MinecraftServer server) {
+		Map<Identifier, Float> values = cached;
+		if (values == null) {
+			values = computeFor(server);
+			cached = values;
+		}
+		return values;
+	}
+
+	/** Recomputes and caches, for server start and datapack reloads. */
+	public static Map<Identifier, Float> refresh(MinecraftServer server) {
+		Map<Identifier, Float> values = computeFor(server);
+		cached = values;
+		return values;
+	}
+
+	/** Called when a server stops, so the next one does not inherit its values. */
+	public static void forgetServerValues() {
+		cached = null;
+	}
+
+	/**
 	 * Evaluates every number provider the server has loaded. Runs on the server, on the thread the
 	 * caller is on; the registry is frozen by the time any of this can be reached.
 	 */
-	public static Map<Identifier, Float> computeFor(MinecraftServer server) {
+	private static Map<Identifier, Float> computeFor(MinecraftServer server) {
 		Map<Identifier, Float> values = Maps.newLinkedHashMap();
 		Set<String> unhandledTypes = Sets.newLinkedHashSet();
 		Set<Identifier> skipped = Sets.newLinkedHashSet();

@@ -15,6 +15,8 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.OnDatapackSyncEvent;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterConfigurationTasksEvent;
@@ -33,6 +35,10 @@ public class EmiNeoForge {
 			}
 		});
 		modEventBus.addListener(EmiNeoForge::registerConfigurationTasks);
+		// Computed once per datapack state rather than once per joining client, so the evaluation
+		// and everything it logs happen once.
+		NeoForge.EVENT_BUS.addListener((ServerStartedEvent started) -> ContextIntValues.refresh(started.getServer()));
+		NeoForge.EVENT_BUS.addListener((ServerStoppedEvent stopped) -> ContextIntValues.forgetServerValues());
 		NeoForge.EVENT_BUS.addListener(this::registerCommands);
 		NeoForge.EVENT_BUS.addListener(this::playerConnect);
 		NeoForge.EVENT_BUS.addListener(this::onDatapackSync);
@@ -70,9 +76,9 @@ public class EmiNeoForge {
 		}
 		// A null player means /reload rather than a join, whose values the configuration task
 		// already sent.
-		if (event.getPlayer() == null && !event.getPlayerList().getPlayers().isEmpty()) {
+		if (event.getPlayer() == null) {
 			ContextIntValuesS2CPacket packet = new ContextIntValuesS2CPacket(
-				ContextIntValues.computeFor(event.getPlayerList().getServer()));
+				ContextIntValues.refresh(event.getPlayerList().getServer()));
 			event.getRelevantPlayers()
 				.filter(player -> player.connection.hasChannel(EmiNetwork.CONTEXT_INT_VALUES))
 				.forEach(player -> PacketDistributor.sendToPlayer(player, packet));

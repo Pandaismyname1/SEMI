@@ -5,6 +5,7 @@ import java.util.function.Consumer;
 import dev.emi.emi.data.ContextIntValues;
 import dev.emi.emi.network.ContextIntValuesS2CPacket;
 import dev.emi.emi.network.EmiNetwork;
+import dev.emi.emi.runtime.EmiLog;
 import net.fabricmc.fabric.api.networking.v1.FabricServerConfigurationPacketListenerImpl;
 import net.fabricmc.fabric.api.networking.v1.ServerConfigurationNetworking;
 import net.minecraft.network.protocol.Packet;
@@ -22,9 +23,16 @@ public record EmiContextValuesTask(ServerConfigurationPacketListenerImpl handler
 
 	@Override
 	public void start(Consumer<Packet<?>> sender) {
-		sender.accept(ServerConfigurationNetworking.createClientboundPacket(
-			new ContextIntValuesS2CPacket(ContextIntValues.computeFor(server))));
-		((FabricServerConfigurationPacketListenerImpl) handler).completeTask(TYPE);
+		// Completed whatever happens: a task that fails to send and never finishes leaves the
+		// client stuck in the configuration phase forever.
+		try {
+			sender.accept(ServerConfigurationNetworking.createClientboundPacket(
+				new ContextIntValuesS2CPacket(ContextIntValues.get(server))));
+		} catch (Throwable t) {
+			EmiLog.error("Could not send the number provider values", t);
+		} finally {
+			((FabricServerConfigurationPacketListenerImpl) handler).completeTask(TYPE);
+		}
 	}
 
 	@Override

@@ -155,33 +155,59 @@ public class EmiPortClient {
      * @param serverValues the values a SEMI server sent, empty when there are none
      * @param providers the number provider registry, when this client can reach one at all
      */
-    public record ContextIntSource(boolean serverValues,
+    public record ContextIntSource(boolean serverSent,
             @Nullable HolderLookup.RegistryLookup<ContextIntProvider> providers) {
 
-        public boolean isEmpty() {
-            return !serverValues && providers == null;
+        /** The sentence to append to a "value unknown" warning, blank when there is nothing to add. */
+        public String explainMissing() {
+            if (providers != null) {
+                return "";
+            }
+            if (serverSent) {
+                // The server does run SEMI, it just could not put a number on these itself.
+                return " The server sent the values it could resolve, but not these.";
+            }
+            return " " + ContextIntValues.MISSING_NUMBER_PROVIDERS;
         }
     }
 
     /** Resolves the sources of data driven numbers once, for a whole reload. */
     public static ContextIntSource contextIntSource() {
-        return new ContextIntSource(!ContextIntValues.isEmpty(), getContextIntProviders().orElse(null));
+        return new ContextIntSource(ContextIntValues.wasReceived(), getContextIntProviders().orElse(null));
     }
 
     /**
      * Resolves a data driven number, preferring the values a SEMI server sent over anything this
      * client can work out locally.
+     * <p>
+     * Null means the value could not be resolved at all, which is not the same as a value of zero:
+     * a datapack is free to give an item a burn time of zero, and that must not be reported as
+     * missing data.
      *
      * @param unhandled receives the registry id of every provider type EMI cannot estimate
      */
-    public static float getExpectedValue(ResolvableInt value, ContextIntSource source, Consumer<String> unhandled) {
+    public static @Nullable Float getExpectedValue(ResolvableInt value, ContextIntSource source, Consumer<String> unhandled) {
+        if (value instanceof ResolvableInt.Constant constant) {
+            return (float) constant.value();
+        }
         if (value instanceof ResolvableInt.Reference reference) {
             Float sent = ContextIntValues.get(reference.key().identifier());
             if (sent != null) {
                 return sent;
             }
+            if (source.providers() == null || source.providers().get(reference.key()).isEmpty()) {
+                return null;
+            }
         }
-        return ContextNumbers.expectedValue(value, source.providers(), unhandled);
+        // Anything the evaluator itself could not make sense of is reported through unhandled and
+        // comes back as zero; count that as unresolved too.
+        boolean[] failed = new boolean[1];
+        Consumer<String> sink = type -> {
+            failed[0] = true;
+            unhandled.accept(type);
+        };
+        float resolved = ContextNumbers.expectedValue(value, source.providers(), sink);
+        return failed[0] ? null : resolved;
     }
 
     /**
