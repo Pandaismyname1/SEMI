@@ -22,7 +22,7 @@ Apply the community fork's 26.1→26.2 delta (`linkfgfgui/26.2`, commits 812a9e1
 - [x] B1. `./gradlew :fabric:build :neoforge:build` succeeds.
 - [x] B2. Fabric client: quick-play into the (upgraded) test world, one reload (3809 recipes), index/search/recipe screen/tag icons/recipe screenshot (`fabric/run/screenshots/emi/recipes/minecraft/crafting_table.png`), clean log; the user also played a session and confirmed it works.
 - [x] B3. NeoForge client: same (3805 recipes; sidebars/index at the right place with the `ScreenEvent.Render.Foreground` hook; `neoforge/run/screenshots/emi/recipes/minecraft/torch.png` produced).
-- [ ] B4. Fabric + NeoForge dedicated servers load EMI (server side) without errors (Fabric up to the EULA gate, see E4).
+- [x] B4. Fabric + NeoForge dedicated servers load EMI (server side) without errors (Fabric up to the EULA gate, see E4; NeoForge to "Done", no errors).
 - [x] B5. No conflict markers / new stubs.
 
 ### C. Quality
