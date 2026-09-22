@@ -86,7 +86,7 @@ public final class ContextNumbers {
 	}
 
 	private static float expectedValue(ContextIntProvider provider, Consumer<String> unhandled, int depth, int[] budget) {
-		if (depth > MAX_DEPTH || --budget[0] < 0) {
+		if (depth > MAX_DEPTH || budget[0]-- <= 0) {
 			unhandled.accept(cycleId(BuiltInRegistries.CONTEXT_INT_PROVIDER_TYPE.getKey(provider.codec()), provider));
 			return 0;
 		}
@@ -166,7 +166,7 @@ public final class ContextNumbers {
 	}
 
 	private static float expectedValue(ContextFloatProvider provider, Consumer<String> unhandled, int depth, int[] budget) {
-		if (depth > MAX_DEPTH || --budget[0] < 0) {
+		if (depth > MAX_DEPTH || budget[0]-- <= 0) {
 			unhandled.accept(cycleId(BuiltInRegistries.CONTEXT_FLOAT_PROVIDER_TYPE.getKey(provider.codec()), provider));
 			return 0;
 		}

@@ -1,10 +1,13 @@
 package dev.emi.emi.data;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
@@ -31,6 +34,8 @@ import dev.emi.emi.runtime.EmiReloadLog;
 public class ContextIntValues {
 	/** A datapack with more providers than this is not worth a packet; vanilla has 26. */
 	public static final int MAX_ENTRIES = 8192;
+	/** How many skipped provider ids a single log line names before summarising the rest. */
+	private static final int LOGGED_IDS = 20;
 	public static final String MISSING_NUMBER_PROVIDERS = "Burn times and composting chances are data"
 		+ " driven numbers that live in a registry the server never synchronizes: a server that runs SEMI"
 		+ " sends the values it resolved, and without one only a singleplayer or LAN host world can work"
@@ -51,10 +56,6 @@ public class ContextIntValues {
 	 */
 	public static @Nullable Float get(Identifier id) {
 		return received.get(id);
-	}
-
-	public static boolean isEmpty() {
-		return received.isEmpty();
 	}
 
 	/**
@@ -99,11 +100,11 @@ public class ContextIntValues {
 		return changed;
 	}
 
-	/** One line per provider type EMI cannot estimate, per reload, rather than a silent zero. */
+	/** One line per provider type EMI cannot estimate, per reload, rather than a silent omission. */
 	public static void warnUnhandled(Set<String> types, String what) {
 		if (!types.isEmpty()) {
 			EmiReloadLog.warn("EMI cannot estimate " + what + " that use the number provider type(s) "
-				+ String.join(", ", types) + "; those values are treated as zero.");
+				+ String.join(", ", types) + "; those items are not listed.");
 		}
 	}
 
@@ -115,17 +116,20 @@ public class ContextIntValues {
 	public static Map<Identifier, Float> get(MinecraftServer server) {
 		Map<Identifier, Float> values = cached;
 		if (values == null) {
-			values = computeFor(server);
-			cached = values;
+			values = refresh(server);
 		}
 		return values;
 	}
 
-	/** Recomputes and caches, for server start and datapack reloads. */
+	/**
+	 * Recomputes and caches, for server start and datapack reloads. A computation that failed
+	 * outright is not cached, so the next client to ask tries again rather than inheriting an empty
+	 * map for the rest of the server's life.
+	 */
 	public static Map<Identifier, Float> refresh(MinecraftServer server) {
 		Map<Identifier, Float> values = computeFor(server);
 		cached = values;
-		return values;
+		return values == null ? Map.of() : values;
 	}
 
 	/** Called when a server stops, so the next one does not inherit its values. */
@@ -137,10 +141,11 @@ public class ContextIntValues {
 	 * Evaluates every number provider the server has loaded. Runs on the server, on the thread the
 	 * caller is on; the registry is frozen by the time any of this can be reached.
 	 */
-	private static Map<Identifier, Float> computeFor(MinecraftServer server) {
+	private static @Nullable Map<Identifier, Float> computeFor(MinecraftServer server) {
 		Map<Identifier, Float> values = Maps.newLinkedHashMap();
 		Set<String> unhandledTypes = Sets.newLinkedHashSet();
-		Set<Identifier> skipped = Sets.newLinkedHashSet();
+		List<Identifier> skipped = Lists.newArrayList();
+		int[] processed = new int[1];
 		boolean[] truncated = new boolean[1];
 		try {
 			HolderLookup.RegistryLookup<ContextIntProvider> providers = server.reloadableRegistries().lookup()
@@ -151,7 +156,10 @@ public class ContextIntValues {
 				return Map.of();
 			}
 			providers.listElements().forEach(reference -> {
-				if (values.size() >= MAX_ENTRIES) {
+				// Counts entries looked at, not entries kept: a registry full of providers EMI
+				// cannot estimate would otherwise be evaluated in full, at the per entry budget
+				// each, on the server thread.
+				if (++processed[0] > MAX_ENTRIES) {
 					truncated[0] = true;
 					return;
 				}
@@ -172,7 +180,7 @@ public class ContextIntValues {
 			// Deliberately Throwable: a datapack that makes the providers reference each other in a
 			// loop would otherwise take the join or the reload worker down with a StackOverflowError
 			EmiLog.error("Could not evaluate the number provider registry", t);
-			return Map.of();
+			return null;
 		}
 		if (truncated[0]) {
 			EmiLog.warn("This server has more than " + MAX_ENTRIES + " number providers; only the first "
@@ -181,12 +189,19 @@ public class ContextIntValues {
 		if (!unhandledTypes.isEmpty()) {
 			EmiLog.warn("EMI cannot estimate the value of the number provider type(s) "
 				+ String.join(", ", unhandledTypes) + ", so " + skipped.size() + " provider(s) are not sent"
-				+ " to clients: " + String.join(", ", skipped.stream().map(Identifier::toString).toList()));
+				+ " to clients: " + abbreviate(skipped));
 		}
 		if (values.isEmpty()) {
 			EmiLog.info("No number provider resolved to a value, so clients get no fuel burn times or"
 				+ " composting chances from this server.");
 		}
-		return values;
+		return Collections.unmodifiableMap(values);
+	}
+
+	/** Keeps a log line readable when a datapack skips hundreds of providers. */
+	private static String abbreviate(List<Identifier> ids) {
+		int shown = Math.min(ids.size(), LOGGED_IDS);
+		String head = String.join(", ", ids.subList(0, shown).stream().map(Identifier::toString).toList());
+		return shown == ids.size() ? head : head + " and " + (ids.size() - shown) + " more";
 	}
 }

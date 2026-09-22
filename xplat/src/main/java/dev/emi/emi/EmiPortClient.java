@@ -11,6 +11,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Button.OnPress;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
@@ -190,14 +191,22 @@ public class EmiPortClient {
         if (value instanceof ResolvableInt.Constant constant) {
             return (float) constant.value();
         }
-        if (value instanceof ResolvableInt.Reference reference) {
-            Float sent = ContextIntValues.get(reference.key().identifier());
-            if (sent != null) {
-                return sent;
-            }
-            if (source.providers() == null || source.providers().get(reference.key()).isEmpty()) {
-                return null;
-            }
+        if (!(value instanceof ResolvableInt.Reference reference)) {
+            // A shape EMI has never seen; the evaluator would answer zero without saying anything.
+            unhandled.accept(value.getClass().getName());
+            return null;
+        }
+        Float sent = ContextIntValues.get(reference.key().identifier());
+        if (sent != null) {
+            return sent;
+        }
+        HolderLookup.RegistryLookup<ContextIntProvider> providers = source.providers();
+        if (providers == null) {
+            return null;
+        }
+        ContextIntProvider provider = providers.get(reference.key()).map(Holder::value).orElse(null);
+        if (provider == null) {
+            return null;
         }
         // Anything the evaluator itself could not make sense of is reported through unhandled and
         // comes back as zero; count that as unresolved too.
@@ -206,7 +215,7 @@ public class EmiPortClient {
             failed[0] = true;
             unhandled.accept(type);
         };
-        float resolved = ContextNumbers.expectedValue(value, source.providers(), sink);
+        float resolved = ContextNumbers.expectedValue(provider, sink);
         return failed[0] ? null : resolved;
     }
 

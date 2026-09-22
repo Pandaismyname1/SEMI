@@ -204,7 +204,9 @@ public class EmiBind {
 		}
 
 		public boolean isUnbound() {
-			return key.getValue() == InputConstants.UNKNOWN.getValue();
+			// Key#equals compares the type as well, which a value-only test would not: the unknown
+			// key and the left mouse button used to share the value 0.
+			return InputConstants.UNKNOWN.equals(key);
 		}
 
 		public MutableComponent getKeyText(ChatFormatting formatting) {
