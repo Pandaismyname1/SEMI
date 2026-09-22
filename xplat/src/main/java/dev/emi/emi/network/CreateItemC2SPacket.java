@@ -1,5 +1,6 @@
 package dev.emi.emi.network;
 
+import net.minecraft.util.Prediction;
 import dev.emi.emi.runtime.EmiLog;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.world.entity.player.Player;
@@ -35,7 +36,7 @@ public class CreateItemC2SPacket implements EmiPacket {
 			} else {
 				EmiLog.info(player.getName() + " cheated in " + stack);
 				if (mode == 0) {
-					player.getInventory().placeItemBackInInventory(stack);
+					player.getInventory().placeItemBackInInventory(stack, Prediction.SERVER_ONLY);
 				} else if (mode == 1) {
 					player.containerMenu.setCarried(stack);
 				}

@@ -265,11 +265,11 @@ public class SlotWidget extends Widget {
 
 	@Override
 	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-		if (slotInteraction(bind -> bind.matchesKey(keyCode, scanCode))) {
+		if (slotInteraction(bind -> bind.matchesKey(keyCode))) {
 			return true;
 		}
 		return EmiScreenManager.stackInteraction(new EmiStackInteraction(getStack(), getRecipe(), true),
-			bind -> bind.matchesKey(keyCode, scanCode));
+			bind -> bind.matchesKey(keyCode));
 	}
 
 	private boolean canResolve() {

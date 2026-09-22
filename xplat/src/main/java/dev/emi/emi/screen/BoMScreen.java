@@ -1,5 +1,6 @@
 package dev.emi.emi.screen;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -17,7 +18,6 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.util.Mth;
-import org.lwjgl.glfw.GLFW;
 
 import com.google.common.collect.Lists;
 
@@ -359,14 +359,14 @@ public class BoMScreen extends Screen {
 
 	@Override
 	public boolean keyPressed(KeyEvent event) {
-		if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
+		if (event.key() == InputConstants.KEY_ESCAPE) {
 			this.onClose();
 			return true;
 		} else if (this.minecraft.options.keyInventory.matches(event)) {
 			this.onClose();
 			return true;
 		}
-		Function<EmiBind, Boolean> function = bind -> bind.matchesKey(event.key(), event.scancode());
+		Function<EmiBind, Boolean> function = bind -> bind.matchesKey(event.key());
 		if (function.apply(EmiConfig.back)) {
 			EmiHistory.pop();
 			return true;
@@ -377,7 +377,7 @@ public class BoMScreen extends Screen {
 				EmiFavorites.addFavorite(hover.stack, hover.node == null ? null : hover.node.recipe);
 			}
 		}
-		if (EmiInput.isControlDown() && event.key() == GLFW.GLFW_KEY_R) {
+		if (EmiInput.isControlDown() && event.key() == InputConstants.KEY_R) {
 			List<EmiRecipe> recipes = EmiApi.getRecipeManager().getRecipes();
 			if (recipes.size() > 0) {
 				for (int i = 0; i < 100_000; i++) {
@@ -389,7 +389,7 @@ public class BoMScreen extends Screen {
 					}
 				}
 			}
-		} else if (EmiInput.isControlDown() && event.key() == GLFW.GLFW_KEY_C) {
+		} else if (EmiInput.isControlDown() && event.key() == InputConstants.KEY_C) {
 			BoM.tree = null;
 			init();
 		}
@@ -438,7 +438,7 @@ public class BoMScreen extends Screen {
 		int mx = (int) ((mouseX - width / 2) / scale - offX);
 		int my = (int) ((mouseY - height / 2) / scale - offY);
 		if (hover != null) {
-			if (button == 1 && hover.node != null && hover.node.recipe != null) {
+			if (button == InputConstants.MOUSE_BUTTON_RIGHT && hover.node != null && hover.node.recipe != null) {
 				if (EmiInput.isShiftDown()) {
 					BoM.tree.addResolution(hover.node.ingredient, null);
 				} else if (!(hover.node.recipe instanceof EmiResolutionRecipe)) {
@@ -452,13 +452,13 @@ public class BoMScreen extends Screen {
 				return true;
 			}
 			if (hover.stack != null) {
-				if (EmiInput.isShiftDown() && button == 0) {
+				if (EmiInput.isShiftDown() && button == InputConstants.MOUSE_BUTTON_LEFT) {
 					if (getAutoResolutions(hover, BoM.tree::addResolution)) {
 						recalculateTree();
 					}
 					return true;
 				} else {
-					if (button == 0) {
+					if (button == InputConstants.MOUSE_BUTTON_LEFT) {
 						EmiApi.displayRecipes(hover.stack);
 						RecipeScreen.resolve = hover.stack;
 						Minecraft client = Minecraft.getInstance();
@@ -527,7 +527,7 @@ public class BoMScreen extends Screen {
 	@Override
 	public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
 		int button = event.button();
-		if (button == 0 || button == 2) {
+		if (button == InputConstants.MOUSE_BUTTON_LEFT || button == InputConstants.MOUSE_BUTTON_MIDDLE) {
 			float scale = getScale();
 			offX += deltaX / scale;
 			offY += deltaY / scale;

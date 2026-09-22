@@ -15,17 +15,17 @@ import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import org.joml.Vector4f;
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.platform.NativeImage;
-import com.mojang.blaze3d.systems.CommandEncoder;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.GpuFormat;
 import com.mojang.blaze3d.ProjectionType;
-import com.mojang.blaze3d.textures.GpuTexture;
+import com.mojang.renderpearl.api.GpuFormat;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
+import com.mojang.renderpearl.api.commands.CommandEncoder;
+import com.mojang.renderpearl.api.textures.GpuTexture;
 import dev.emi.emi.EmiPort;
 import dev.emi.emi.config.EmiConfig;
 import dev.emi.emi.mixin.accessor.GameRendererAccessor;
@@ -86,7 +86,10 @@ public class EmiScreenshotRecorder {
 
 		RenderTarget framebuffer;
 		try {
-			framebuffer = new TextureTarget("EMI Screenshot", width * scale, height * scale, true, GpuFormat.RGBA8_UNORM);
+			// 26.3 asks for the depth format explicitly instead of a "useDepth" flag; D32_FLOAT is
+			// the one GameRenderer gives its own main target.
+			framebuffer = new TextureTarget("EMI Screenshot", width * scale, height * scale,
+				GpuFormat.RGBA8_UNORM, GpuFormat.D32_FLOAT);
 		} catch (Throwable t) {
 			EmiLog.error("Could not allocate a render target for the recipe screenshot", t);
 			return;
@@ -123,9 +126,10 @@ public class EmiScreenshotRecorder {
 			// GuiRenderer only clears depth itself in its after-blur path, and unlike the main target
 			// this one is cleared to a fully transparent black so that the recipe keeps its
 			// transparent background. The depth clear value is the one GameRenderer.render uses
-			// before its own GUI pass: 26.2 uses a reversed depth range (DepthStencilState.DEFAULT
-			// compares with GREATER_THAN_OR_EQUAL), so the "far" value is 0.0. The GUI pipelines
-			// themselves carry no depth state, so today the value is inert either way
+			// before its own GUI pass: since 26.2 the GUI uses a reversed depth range
+			// (DepthStencilState.DEFAULT compares with GREATER_THAN_OR_EQUAL), so the "far" value
+			// is 0.0. The GUI pipelines themselves carry no depth state, so today the value is
+			// inert either way
 			RenderSystem.getDevice().createCommandEncoder()
 				.clearColorAndDepthTextures(colorTexture, new Vector4f(0.0f, 0.0f, 0.0f, 0.0f), framebuffer.getDepthTexture(), 0.0);
 

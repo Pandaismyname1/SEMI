@@ -129,7 +129,7 @@ public abstract class AbstractInventoryScreenMixin {
 					.map(Component::getVisualOrderText)
 					.map(ClientTooltipComponent::create)
 					.toList();
-			context.deferTooltip(() -> context.raw().tooltip(minecraft.font, components, mouseX, Math.max(mouseY, 16), DefaultTooltipPositioner.INSTANCE, null));
+			context.deferTooltip(() -> context.raw().tooltip(minecraft.font, components, mouseX, Math.max(mouseY, 16), DefaultTooltipPositioner.INSTANCE, null, true));
 		}
 	}
 

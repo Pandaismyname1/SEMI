@@ -1,5 +1,6 @@
 package dev.emi.emi.screen;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
@@ -820,7 +821,7 @@ public class EmiScreenManager {
 							.map(Component::getVisualOrderText)
 							.map(ClientTooltipComponent::create)
 							.toList();
-					context.deferTooltip(() -> context.raw().tooltip(client.font, tooltipComponents, 0, 20, DefaultTooltipPositioner.INSTANCE, null));
+					context.deferTooltip(() -> context.raw().tooltip(client.font, tooltipComponents, 0, 20, DefaultTooltipPositioner.INSTANCE, null, true));
 				}
 			}
 			context.drawTextWithShadow(title, devTextX, screen.height + off, color);
@@ -937,7 +938,7 @@ public class EmiScreenManager {
 	}
 
 	private static boolean isClickClicky(int button) {
-		return button >= 0 && button < 3;
+		return button >= InputConstants.MOUSE_BUTTON_LEFT && button <= InputConstants.MOUSE_BUTTON_RIGHT;
 	}
 
 	public static boolean mouseScrolled(double mouseX, double mouseY, double amount) {
@@ -1091,7 +1092,7 @@ public class EmiScreenManager {
 		if (isDisabled()) {
 			return false;
 		}
-		if (draggedStack.isEmpty() && button == 0) {
+		if (draggedStack.isEmpty() && button == InputConstants.MOUSE_BUTTON_LEFT) {
 			if (client.gui.screen() instanceof AbstractContainerScreen<?> handled) {
 				if (!handled.getMenu().getCarried().isEmpty()) {
 					return false;
@@ -1112,7 +1113,7 @@ public class EmiScreenManager {
 			return false;
 		}
 		if (isDisabled()) {
-			if (EmiConfig.toggleVisibility.matchesKey(event.key(), event.scancode())) {
+			if (EmiConfig.toggleVisibility.matchesKey(event.key())) {
 				toggleVisibility(true);
 				return true;
 			}
@@ -1124,21 +1125,21 @@ public class EmiScreenManager {
 		if (hasFocusedTextField(client.gui.screen(), 10)) {
 			return false;
 		}
-		if (EmiApi.isCheatMode() && EmiConfig.deleteCursorStack.matchesKey(event.key(), event.scancode())) {
+		if (EmiApi.isCheatMode() && EmiConfig.deleteCursorStack.matchesKey(event.key())) {
 			if (deleteCursor(lastMouseX, lastMouseY)) {
 				return true;
 			}
 		}
-		if (EmiConfig.displayAllRecipes.matchesKey(event.key(), event.scancode())) {
+		if (EmiConfig.displayAllRecipes.matchesKey(event.key())) {
 			EmiApi.displayAllRecipes();
 			return true;
 		} else {
 			recalculate();
 			if (stackInteraction(getHoveredStack(lastMouseX, lastMouseY, true),
-					bind -> bind.matchesKey(event.key(), event.scancode()))) {
+					bind -> bind.matchesKey(event.key()))) {
 				return true;
 			}
-			if (genericInteraction(bind -> bind.matchesKey(event.key(), event.scancode()))) {
+			if (genericInteraction(bind -> bind.matchesKey(event.key()))) {
 				return true;
 			}
 		}

@@ -20,7 +20,6 @@ import net.minecraft.locale.Language;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.Style;
-import org.lwjgl.glfw.GLFW;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -389,7 +388,7 @@ public class ConfigScreen extends Screen {
 			if (child instanceof ConfigJumpButton btn && btn.isMouseOver(event.x(), event.y())) {
 				if (btn.mouseClicked(event, doubleClick)) {
 					this.setFocused(btn);
-					if (event.button() == 0) {
+					if (event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
 						this.setDragging(true);
 					}
 					return true;
@@ -412,29 +411,29 @@ public class ConfigScreen extends Screen {
 				pushModifier(event.key());
 			} else {
 				pushModifier(0);
-				if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
+				if (event.key() == InputConstants.KEY_ESCAPE) {
 					activeBind.setBind(activeBindOffset, new ModifiedKey(InputConstants.UNKNOWN, 0));
 				} else {
-					activeBind.setBind(activeBindOffset, new ModifiedKey(InputConstants.Type.KEYSYM.getOrCreate(event.key()), activeModifiers));
+					activeBind.setBind(activeBindOffset, new ModifiedKey(InputConstants.Type.KEYBOARD.getOrCreate(event.key()), activeModifiers));
 				}
 				activeBind = null;
 				updateChanges();
 			}
 			return true;
 		} else {
-			if (event.key() == GLFW.GLFW_KEY_TAB) {
+			if (event.key() == InputConstants.KEY_TAB) {
 				return false;
 			}
 			if (super.keyPressed(event)) {
 				return true;
 			}
 			if (this.getFocused() instanceof EditBox tfw && tfw.isFocused()) {
-				if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
+				if (event.key() == InputConstants.KEY_ESCAPE) {
 					EmiPort.focus(tfw, false);
 					return true;
 				}
 			} else {
-				if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
+				if (event.key() == InputConstants.KEY_ESCAPE) {
 					this.onClose();
 					return true;
 				} else if (this.minecraft.options.keyInventory.matches(event)) {
@@ -451,7 +450,7 @@ public class ConfigScreen extends Screen {
 		if (activeBind != null) {
 			activeModifiers &= ~EmiInput.maskFromCode(event.key());
 			if (event.key() == lastModifier) {
-				activeBind.setBind(activeBindOffset, new ModifiedKey(InputConstants.Type.KEYSYM.getOrCreate(event.key()), activeModifiers));
+				activeBind.setBind(activeBindOffset, new ModifiedKey(InputConstants.Type.KEYBOARD.getOrCreate(event.key()), activeModifiers));
 				activeBind = null;
 			}
 			return true;

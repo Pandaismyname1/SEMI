@@ -1,5 +1,6 @@
 package dev.emi.emi.screen;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import java.lang.reflect.Field;
 import java.util.List;
 import net.minecraft.client.Minecraft;
@@ -10,7 +11,6 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
 
 import dev.emi.emi.EmiPort;
 import dev.emi.emi.EmiRenderHelper;
@@ -97,13 +97,13 @@ public class ConfigPresetScreen extends Screen {
 	
 	@Override
 	public boolean keyPressed(KeyEvent event) {
-		if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
+		if (event.key() == InputConstants.KEY_ESCAPE) {
 			this.onClose();
 			return true;
 		} else if (this.minecraft.options.keyInventory.matches(event)) {
 			this.onClose();
 			return true;
-		} else if (event.key() == GLFW.GLFW_KEY_TAB) {
+		} else if (event.key() == InputConstants.KEY_TAB) {
 			return false;
 		}
 		return super.keyPressed(event);

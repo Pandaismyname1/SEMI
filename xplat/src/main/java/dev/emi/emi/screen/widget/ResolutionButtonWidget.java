@@ -54,7 +54,7 @@ public class ResolutionButtonWidget extends Button {
 				EmiPort.translatable("tooltip.emi.default_resolution"),
 				EmiPort.translatable("tooltip.emi.clear_resolution")
 			).stream().map(c -> ClientTooltipComponent.create(c.getVisualOrderText())).toList();
-			context.deferTooltip(() -> raw.tooltip(client.font, tooltipComponents, mouseX, mouseY, DefaultTooltipPositioner.INSTANCE, null));
+			context.deferTooltip(() -> raw.tooltip(client.font, tooltipComponents, mouseX, mouseY, DefaultTooltipPositioner.INSTANCE, null, true));
 		}
 		stack.render(raw, x + 1, y + 1, delta);
 	}

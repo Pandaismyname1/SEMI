@@ -164,7 +164,7 @@ public class EmiRenderHelper {
 		context.enableDepthTest();
 		context.resetColor();
 		List<ClientTooltipComponent> finalMutable = mutable;
-		context.deferTooltip(() -> context.raw().tooltip(CLIENT.font, finalMutable, x, finalY, positioner, null));
+		context.deferTooltip(() -> context.raw().tooltip(CLIENT.font, finalMutable, x, finalY, positioner, null, true));
 	}
 
 	public static void drawSlotHightlight(EmiDrawContext context, int x, int y, int w, int h, int z) {

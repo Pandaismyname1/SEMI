@@ -17,7 +17,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.Sheets;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.world.item.ItemDisplayContext;
@@ -38,6 +37,7 @@ import dev.emi.emi.EmiPort;
 import dev.emi.emi.api.stack.EmiIngredient;
 import dev.emi.emi.config.EmiConfig;
 import dev.emi.emi.mixin.accessor.ItemStackRenderStateAccessor;
+import dev.emi.emi.mixin.accessor.LayerRenderStateAccessor;
 import dev.emi.emi.runtime.EmiLog;
 
 public class StackBatcher {
@@ -112,8 +112,9 @@ public class StackBatcher {
 		Map<RenderType, ByteBufferBuilder> buffers = new HashMap<>();
 		assign(buffers, Sheets.cutoutBlockItemSheet());
 		assign(buffers, Sheets.translucentItemSheet());
-		assign(buffers, RenderTypes.glint());
-		assign(buffers, RenderTypes.entityGlint());
+		// 26.3 has no fixed glint render types left, only per-texture ones, so there is nothing to
+		// pre-assign a buffer for. Moot either way: this code is unreachable while the batcher is
+		// inert.
 		for (RenderType layer : EXTRA_RENDER_LAYERS) {
 			assign(buffers, layer);
 		}
@@ -176,7 +177,7 @@ public class StackBatcher {
 						client.getItemModelResolver().updateForTopItem(renderState, is, ItemDisplayContext.GUI, client.level, null, 0);
 						if (((ItemStackRenderStateAccessor) renderState).emi$getActiveLayerCount() > 0) {
 							ItemStackRenderState.LayerRenderState layer = ((ItemStackRenderStateAccessor) renderState).emi$getLayers()[0];
-							List<BakedQuad> quads = layer.prepareQuadList();
+							List<BakedQuad> quads = ((LayerRenderStateAccessor) layer).emi$getQuads().all();
 							for (BakedQuad quad : quads) {
 								if (quad != null) {
 									spritesToUpdate.add(quad.materialInfo().sprite());
@@ -393,6 +394,12 @@ public class StackBatcher {
 			@Override
 			public VertexConsumer setUv1(int u, int v) {
 				delegate.setUv1(u, v);
+				return this;
+			}
+
+			@Override
+			public VertexConsumer setUv3(float u, float v) {
+				delegate.setUv3(u, v);
 				return this;
 			}
 

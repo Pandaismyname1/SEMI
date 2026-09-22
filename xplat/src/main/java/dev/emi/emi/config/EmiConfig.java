@@ -13,8 +13,6 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import org.lwjgl.glfw.GLFW;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -352,11 +350,11 @@ public class EmiConfig {
 	// Binds
 	@Comment("Toggle the visibility of EMI.")
 	@ConfigValue("binds.toggle-visibility")
-	public static EmiBind toggleVisibility = new EmiBind("key.emi.toggle_visibility", EmiInput.CONTROL_MASK, GLFW.GLFW_KEY_O);
+	public static EmiBind toggleVisibility = new EmiBind("key.emi.toggle_visibility", EmiInput.CONTROL_MASK, InputConstants.KEY_O);
 
 	@Comment("Focuses the search bar.")
 	@ConfigValue("binds.focus-search")
-	public static EmiBind focusSearch = new EmiBind("key.emi.focus_search", EmiInput.CONTROL_MASK, GLFW.GLFW_KEY_F);
+	public static EmiBind focusSearch = new EmiBind("key.emi.focus_search", EmiInput.CONTROL_MASK, InputConstants.KEY_F);
 
 	@Comment("Clears the search bar.")
 	@ConfigValue("binds.clear-search")
@@ -364,28 +362,28 @@ public class EmiConfig {
 
 	@Comment("Display all recipes in the game.")
 	@ConfigValue("binds.display-all-recipes")
-	public static EmiBind displayAllRecipes = new EmiBind("key.emi.display_all_recipes", EmiInput.CONTROL_MASK, GLFW.GLFW_KEY_Y);
+	public static EmiBind displayAllRecipes = new EmiBind("key.emi.display_all_recipes", EmiInput.CONTROL_MASK, InputConstants.KEY_Y);
 
 	@Comment("Display the recipes for creating a stack.")
 	@ConfigValue("binds.view-recipes")
 	public static EmiBind viewRecipes = new EmiBind("key.emi.view_recipes",
-		new EmiBind.ModifiedKey(InputConstants.Type.KEYSYM.getOrCreate(GLFW.GLFW_KEY_R), 0),
-		new EmiBind.ModifiedKey(InputConstants.Type.MOUSE.getOrCreate(0), 0));
+		new EmiBind.ModifiedKey(InputConstants.Type.KEYBOARD.getOrCreate(InputConstants.KEY_R), 0),
+		new EmiBind.ModifiedKey(InputConstants.Type.MOUSE.getOrCreate(InputConstants.MOUSE_BUTTON_LEFT), 0));
 
 	@Comment("Display the recipes that can be created using a stack.")
 	@ConfigValue("binds.view-uses")
 	public static EmiBind viewUses = new EmiBind("key.emi.view_uses",
-		new EmiBind.ModifiedKey(InputConstants.Type.KEYSYM.getOrCreate(GLFW.GLFW_KEY_U), 0),
-		new EmiBind.ModifiedKey(InputConstants.Type.MOUSE.getOrCreate(1), 0));
+		new EmiBind.ModifiedKey(InputConstants.Type.KEYBOARD.getOrCreate(InputConstants.KEY_U), 0),
+		new EmiBind.ModifiedKey(InputConstants.Type.MOUSE.getOrCreate(InputConstants.MOUSE_BUTTON_RIGHT), 0));
 
 	@Comment("Favorite the item to display on the side of the screen opposite of recipies for quick access.")
 	@ConfigValue("binds.favorite")
-	public static EmiBind favorite = new EmiBind("key.emi.favorite", GLFW.GLFW_KEY_A);
+	public static EmiBind favorite = new EmiBind("key.emi.favorite", InputConstants.KEY_A);
 
 	@Comment("Set the default recipe for a given stack in the output of a recipe to that recipe.")
 	@ConfigValue("binds.default-stack")
 	public static EmiBind defaultStack = new EmiBind("key.emi.default_stack",
-		new EmiBind.ModifiedKey(InputConstants.Type.MOUSE.getOrCreate(0), EmiInput.CONTROL_MASK));
+		new EmiBind.ModifiedKey(InputConstants.Type.MOUSE.getOrCreate(InputConstants.MOUSE_BUTTON_LEFT), EmiInput.CONTROL_MASK));
 
 	@Comment("Display the recipe tree for a given stack.")
 	@ConfigValue("binds.view-stack-tree")
@@ -397,7 +395,7 @@ public class EmiConfig {
 
 	@Comment("Return to the previous page in EMI.")
 	@ConfigValue("binds.back")
-	public static EmiBind back = new EmiBind("key.emi.back", GLFW.GLFW_KEY_BACKSPACE);
+	public static EmiBind back = new EmiBind("key.emi.back", InputConstants.KEY_BACKSPACE);
 
 	@Comment("Return to the next page in EMI after going back.")
 	@ConfigValue("binds.forward")
@@ -408,13 +406,13 @@ public class EmiConfig {
 		+ "Move ingredients for a single result.")
 	@ConfigValue("binds.craft-one")
 	public static EmiBind craftOne = new EmiBind("key.emi.craft_one",
-		new EmiBind.ModifiedKey(InputConstants.Type.MOUSE.getOrCreate(0), 0));
+		new EmiBind.ModifiedKey(InputConstants.Type.MOUSE.getOrCreate(InputConstants.MOUSE_BUTTON_LEFT), 0));
 
 	@Comment("When on a stack with an associated recipe:\n"
 		+ "Move ingredients for as many results as possible.")
 	@ConfigValue("binds.craft-all")
 	public static EmiBind craftAll = new EmiBind("key.emi.craft_all", 
-		new EmiBind.ModifiedKey(InputConstants.Type.MOUSE.getOrCreate(0), EmiInput.SHIFT_MASK));
+		new EmiBind.ModifiedKey(InputConstants.Type.MOUSE.getOrCreate(InputConstants.MOUSE_BUTTON_LEFT), EmiInput.SHIFT_MASK));
 
 	@Comment("When on a stack with an associated recipe:\n"
 		+ "Move ingredients for a single result and put in inventory if possible.")
@@ -430,28 +428,28 @@ public class EmiConfig {
 		+ "Move ingredients for a single result and put in cursor if possible.")
 	@ConfigValue("binds.craft-one-to-cursor")
 	public static EmiBind craftOneToCursor = new EmiBind("key.emi.craft_one_to_cursor", 
-		new EmiBind.ModifiedKey(InputConstants.Type.MOUSE.getOrCreate(0), EmiInput.CONTROL_MASK));
+		new EmiBind.ModifiedKey(InputConstants.Type.MOUSE.getOrCreate(InputConstants.MOUSE_BUTTON_LEFT), EmiInput.CONTROL_MASK));
 
 	@ConfigGroupEnd
 	@Comment("Display the recipe that will be used to craft on a stack with no recipe context.")
 	@ConfigValue("binds.show-craft")
-	public static EmiBind showCraft = new EmiBind("key.emi.show_craft", GLFW.GLFW_KEY_LEFT_SHIFT);
+	public static EmiBind showCraft = new EmiBind("key.emi.show_craft", InputConstants.KEY_LSHIFT);
 
 	@ConfigGroup("binds.cheats")
 	@Comment("Cheat in one of an item into the inventory.")
 	@ConfigValue("binds.cheat-one-to-inventory")
 	public static EmiBind cheatOneToInventory = new EmiBind("key.emi.cheat_one_to_inventory",
-		new EmiBind.ModifiedKey(InputConstants.Type.MOUSE.getOrCreate(1), EmiInput.CONTROL_MASK));
+		new EmiBind.ModifiedKey(InputConstants.Type.MOUSE.getOrCreate(InputConstants.MOUSE_BUTTON_RIGHT), EmiInput.CONTROL_MASK));
 
 	@Comment("Cheat in a stack of an item into the inventory.")
 	@ConfigValue("binds.cheat-stack-to-inventory")
 	public static EmiBind cheatStackToInventory = new EmiBind("key.emi.cheat_stack_to_inventory",
-		new EmiBind.ModifiedKey(InputConstants.Type.MOUSE.getOrCreate(0), EmiInput.CONTROL_MASK));
+		new EmiBind.ModifiedKey(InputConstants.Type.MOUSE.getOrCreate(InputConstants.MOUSE_BUTTON_LEFT), EmiInput.CONTROL_MASK));
 	
 	@Comment("Cheat in one of an item into the cursor.")
 	@ConfigValue("binds.cheat-one-to-cursor")
 	public static EmiBind cheatOneToCursor = new EmiBind("key.emi.cheat_one_to_cursor",
-		new EmiBind.ModifiedKey(InputConstants.Type.MOUSE.getOrCreate(2), EmiInput.CONTROL_MASK));
+		new EmiBind.ModifiedKey(InputConstants.Type.MOUSE.getOrCreate(InputConstants.MOUSE_BUTTON_MIDDLE), EmiInput.CONTROL_MASK));
 	
 	@Comment("Cheat in a stack of an item into the cursor.")
 	@ConfigValue("binds.cheat-stack-to-cursor")
@@ -461,7 +459,7 @@ public class EmiConfig {
 	@Comment("Delete the stack in the cursor when hovering the index")
 	@ConfigValue("binds.delete-cursor-stack")
 	public static EmiBind deleteCursorStack = new EmiBind("key.emi.delete_cursor_stack",
-		new EmiBind.ModifiedKey(InputConstants.Type.MOUSE.getOrCreate(0), 0));
+		new EmiBind.ModifiedKey(InputConstants.Type.MOUSE.getOrCreate(InputConstants.MOUSE_BUTTON_LEFT), 0));
 
 	@Comment("Copies the hovered recipe's ID to the clipboard")
 	@ConfigValue("binds.copy-recipe-id")
@@ -470,12 +468,12 @@ public class EmiConfig {
 	@Comment("In edit mode, hide the hovered stack")
 	@ConfigValue("binds.hide-stack")
 	public static EmiBind hideStack = new EmiBind("key.emi.hide_stack",
-		new EmiBind.ModifiedKey(InputConstants.Type.MOUSE.getOrCreate(0), EmiInput.CONTROL_MASK));
+		new EmiBind.ModifiedKey(InputConstants.Type.MOUSE.getOrCreate(InputConstants.MOUSE_BUTTON_LEFT), EmiInput.CONTROL_MASK));
 
 	@Comment("In edit mode, hide stacks with the hovered stack's id")
 	@ConfigValue("binds.hide-stack-by-id")
 	public static EmiBind hideStackById = new EmiBind("key.emi.hide_stack_by_id",
-		new EmiBind.ModifiedKey(InputConstants.Type.MOUSE.getOrCreate(0), EmiInput.CONTROL_MASK | EmiInput.SHIFT_MASK));
+		new EmiBind.ModifiedKey(InputConstants.Type.MOUSE.getOrCreate(InputConstants.MOUSE_BUTTON_LEFT), EmiInput.CONTROL_MASK | EmiInput.SHIFT_MASK));
 	
 	// Dev
 	@Comment("Whether development functions should be enabled. Not recommended for general play.")

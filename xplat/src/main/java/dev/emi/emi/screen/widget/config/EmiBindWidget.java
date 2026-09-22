@@ -52,7 +52,7 @@ public class EmiBindWidget extends ConfigEntryWidget {
 				if (screen.lastModifier == 0) {
 					button.setMessage(EmiPort.literal("...", ChatFormatting.YELLOW));
 				} else {
-					button.setMessage(new ModifiedKey(InputConstants.Type.KEYSYM
+					button.setMessage(new ModifiedKey(InputConstants.Type.KEYBOARD
 						.getOrCreate(screen.lastModifier), screen.activeModifiers)
 						.getKeyText(ChatFormatting.YELLOW));
 				}

@@ -1,5 +1,6 @@
 package dev.emi.emi.chess;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import java.util.List;
 import java.util.UUID;
 import net.minecraft.client.Minecraft;
@@ -101,7 +102,7 @@ public class EmiChess {
 
 				}
 			}
-			if (piece != null && piece.type() == PieceType.KING && button == 1) {
+			if (piece != null && piece.type() == PieceType.KING && button == InputConstants.MOUSE_BUTTON_RIGHT) {
 				if (piece.color() == PieceColor.WHITE || chess.pending != null) {
 					if (chess.generator instanceof NetworkedMoveGenerator nmg) {
 						sendNetwork(chess.opponent, -3, 0, 0);

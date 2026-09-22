@@ -1,5 +1,6 @@
 package dev.emi.emi.screen.widget;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -13,8 +14,6 @@ import net.minecraft.client.resources.language.I18n;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.util.Mth;
-import org.lwjgl.glfw.GLFW;
-
 import com.google.common.collect.Lists;
 import com.mojang.datafixers.util.Pair;
 import dev.emi.emi.EmiPort;
@@ -178,19 +177,19 @@ public class EmiSearchWidget extends EditBox {
 			EmiPort.focus(this, false);
 			return false;
 		} else {
-			boolean b = super.mouseClicked(event, button == 1 ? false : doubleClick);
+			boolean b = super.mouseClicked(event, button == InputConstants.MOUSE_BUTTON_RIGHT ? false : doubleClick);
 			if (isMouseOver(mouseX, mouseY)) {
 				EmiPort.focus(this, true);
 			}
 			if (this.isFocused()) {
-				if (button == 0) {
+				if (button == InputConstants.MOUSE_BUTTON_LEFT) {
 					if (System.currentTimeMillis() - lastClick < 500) {
 						highlight = !highlight;
 						lastClick = 0;
 					} else {
 						lastClick = System.currentTimeMillis();
 					}
-				} else if (button == 1) {
+				} else if (button == InputConstants.MOUSE_BUTTON_RIGHT) {
 					this.setValue("");
 					EmiPort.focus(this, true);
 				}
@@ -202,17 +201,17 @@ public class EmiSearchWidget extends EditBox {
 	@Override
 	public boolean keyPressed(KeyEvent event) {
 		if (this.isFocused()) {
-			if (EmiConfig.clearSearch.matchesKey(event.key(), event.scancode())) {
+			if (EmiConfig.clearSearch.matchesKey(event.key())) {
 				setValue("");
 				return true;
 			}
-			if ((EmiConfig.focusSearch.matchesKey(event.key(), event.scancode())
-					|| event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_ESCAPE)) {
+			if ((EmiConfig.focusSearch.matchesKey(event.key())
+					|| event.key() == InputConstants.KEY_RETURN || event.key() == InputConstants.KEY_ESCAPE)) {
 				EmiPort.focus(this, false);
 				return true;
 			}
-			if (event.key() == GLFW.GLFW_KEY_UP || event.key() == GLFW.GLFW_KEY_DOWN) {
-				int offset = event.key() == GLFW.GLFW_KEY_UP ? 1 : -1;
+			if (event.key() == InputConstants.KEY_UP || event.key() == InputConstants.KEY_DOWN) {
+				int offset = event.key() == InputConstants.KEY_UP ? 1 : -1;
 				if (searchHistoryIndex + offset >= 0 && searchHistoryIndex + offset < searchHistory.size()) {
 					if (searchHistoryIndex >= 0 && searchHistoryIndex < searchHistory.size()) {
 						searchHistory.set(searchHistoryIndex, getValue());
