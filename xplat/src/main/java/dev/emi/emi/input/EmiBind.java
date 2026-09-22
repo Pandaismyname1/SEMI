@@ -12,9 +12,17 @@ import com.google.common.collect.Lists;
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.emi.emi.EmiPort;
 
+/**
+ * A key or mouse bind, stored as an {@link InputConstants.Key} plus EMI's own modifier mask. Since
+ * 26.3 a keyboard key's value is an SDL scancode ({@code KeyEvent.key()}) and mouse buttons are
+ * numbered 1, 2, 3 for left, middle and right, so any code building a bind by hand should use
+ * {@link InputConstants}'s {@code KEY_*} and {@code MOUSE_BUTTON_*} constants.
+ */
 public class EmiBind {
 	public static final EmiBind LEFT_CLICK = new EmiBind("", new EmiBind.ModifiedKey(InputConstants.Type.MOUSE.getOrCreate(InputConstants.MOUSE_BUTTON_LEFT), 0));
 	public static final int MAX_BINDS = 4;
+	/** SDL's {@code SDL_SCANCODE_COUNT}: the length of the keyboard state array {@code InputConstants.isKeyDown} reads. */
+	private static final int SDL_SCANCODE_COUNT = 512;
 	public final String translationKey;
 	public final List<ModifiedKey> defaultKeys;
 	public List<ModifiedKey> boundKeys;
@@ -90,7 +98,8 @@ public class EmiBind {
 	public boolean isHeld() {
 		for (ModifiedKey boundKey : boundKeys) {
 			if (EmiInput.getCurrentModifiers() == boundKey.modifiersToMatch()) {
-				if (boundKey.key.getType() == InputConstants.Type.KEYBOARD && boundKey.key.getValue() != -1) {
+				if (boundKey.key.getType() == InputConstants.Type.KEYBOARD && boundKey.key != InputConstants.UNKNOWN
+						&& isKeyboardScancode(boundKey.key.getValue())) {
 					if (InputConstants.isKeyDown(boundKey.key.getValue())) {
 						return true;
 					}
@@ -98,6 +107,16 @@ public class EmiBind {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * {@code InputConstants.isKeyDown} indexes SDL's keyboard state buffer without a bounds check,
+	 * so a hand edited bind such as {@code key.keyboard.9999} would throw out of the render thread.
+	 * Bind values are SDL scancodes, of which there are {@code SDL_SCANCODE_COUNT} (512); anything
+	 * outside that range cannot be pressed and is simply never held.
+	 */
+	private static boolean isKeyboardScancode(int value) {
+		return value >= 0 && value < SDL_SCANCODE_COUNT;
 	}
 
 	/**

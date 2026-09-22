@@ -7,6 +7,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import com.mojang.blaze3d.platform.InputConstants;
+
 import dev.emi.emi.runtime.EmiLog;
 import dev.emi.emi.screen.EmiScreenManager;
 import net.minecraft.client.KeyboardHandler;
@@ -29,7 +31,10 @@ public class KeyboardMixin {
 		try {
 			Screen screen = minecraft.gui.screen();
 			if (screen instanceof AbstractContainerScreen<?> hs) {
-				if (action == 1 || action == 2) {
+				// 26.3's action values are SDL's, not GLFW's: PRESS is 1, RELEASE 0 and REPEAT
+				// -1. Repeats reach this injection point too and binds have always honoured
+				// them, so both have to be accepted.
+				if (action == InputConstants.PRESS || action == InputConstants.REPEAT) {
 					if (EmiScreenManager.keyPressed(event)) {
 						info.cancel();
 					}

@@ -4,6 +4,13 @@ import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.input.InputQuirks;
 
+/**
+ * EMI's own modifier mask, which is independent of the platform's. 26.3 moved Minecraft off GLFW
+ * onto SDL, so key codes are SDL scancodes and modifier masks are SDL keymods: anything comparing
+ * raw key, button or modifier values should go through
+ * {@link com.mojang.blaze3d.platform.InputConstants}'s constants or these helpers, never through a
+ * GLFW constant.
+ */
 public class EmiInput {
 	public static final int CONTROL_MASK = 1;
 	public static final int ALT_MASK = 2;
