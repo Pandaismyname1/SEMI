@@ -16,18 +16,11 @@ public interface EmiTooltipComponent extends ClientTooltipComponent {
 	}
 
 	@Override
-	default int getWidth(Font font) {
-		return 0;
-	}
-
-	@Override
 	default void extractImage(Font textRenderer, int x, int y, int width, int height, GuiGraphicsExtractor raw) {
 		EmiDrawContext context = EmiDrawContext.wrap(raw);
 		context.push();
 		context.translate(x, y);
-		context.setOverlay(true);
 		drawTooltip(context, new TooltipRenderData(textRenderer, x, y));
-		context.setOverlay(false);
 		context.pop();
 	}
 
@@ -53,7 +46,7 @@ public interface EmiTooltipComponent extends ClientTooltipComponent {
 		}
 
 		public void draw(Component text, int x, int y, int color, boolean shadow) {
-			graphics.text(renderer, text, x + this.x, y + this.y, color | 0xFF000000, shadow);
+			graphics.text(renderer, text, x + this.x, y + this.y, EmiDrawContext.opaqueColor(color), shadow);
 		}
 	}
 

@@ -106,7 +106,12 @@ public abstract class AbstractInventoryScreenMixin {
 				int ew = wide ? 120 : 32;
 				List<MobEffectInstance> single = List.of(inst);
 				this.extractBackground(context.raw(), this.screen.getFont(), this.getEffectName(inst), MobEffectUtil.formatDuration(inst, 1.0f, minecraft.level.tickRateManager().tickrate()), x, y, inst.isAmbient(), ew);
-				this.extractText(context.raw(), this.getEffectName(inst), MobEffectUtil.formatDuration(inst, 1.0f, minecraft.level.tickRateManager().tickrate()), this.screen.getFont(), x, y, ew, 33, mouseX, mouseY);
+				// Only the wide layout has room for the name and duration. Vanilla's extractText
+				// also registers its own hover tooltip when the text does not fit, which would
+				// fight with the one deferred below, so it is skipped entirely when compressed
+				if (wide) {
+					this.extractText(context.raw(), this.getEffectName(inst), MobEffectUtil.formatDuration(inst, 1.0f, minecraft.level.tickRateManager().tickrate()), this.screen.getFont(), x, y, ew, 33, mouseX, mouseY);
+				}
 				context.raw().blitSprite(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, net.minecraft.client.gui.Gui.getMobEffectSprite(inst.getEffect()), x + 7, y + 7, 18, 18);
 				if (mouseX >= x && mouseX < x + ew && mouseY >= y && mouseY < y + 32) {
 					hovered = inst;

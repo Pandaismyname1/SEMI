@@ -271,7 +271,11 @@ public class VanillaPlugin implements EmiPlugin {
 		});
 
 		registry.addGenericExclusionArea((screen, consumer) -> {
-			if (EmiConfig.effectLocation != EffectLocation.HIDDEN && (screen instanceof InventoryScreen || screen instanceof CreativeModeInventoryScreen)) {
+			// 26.1 has no EffectRenderingInventoryScreen base class; screens compose an
+			// EffectsInInventory and expose it through Screen#showsActiveEffects, which is the
+			// widest check that still covers modded screens (and folds in vanilla's own
+			// canSeeEffects room check)
+			if (EmiConfig.effectLocation != EffectLocation.HIDDEN && screen instanceof AbstractContainerScreen<?> && screen.showsActiveEffects()) {
 			Minecraft client = Minecraft.getInstance();
 			Collection<MobEffectInstance> collection = client.player.getActiveEffects();
 			if (!collection.isEmpty()) {

@@ -108,8 +108,8 @@ public class EmiConfig {
 	@ConfigValue("ui.fluid-unit")
 	public static FluidUnit fluidUnit = EmiAgnos.isForge() ? FluidUnit.MILLIBUCKETS : FluidUnit.LITERS;
 
-	@Comment("Whether to use the batched render system. Batching is faster, but may have incompatibilities"
-		+ " with shaders or other mods.")
+	@Comment("Whether to use the batched render system. Has no effect on 26.1 and later, where vanilla"
+		+ " already caches GUI item rendering in its own item atlas.")
 	@ConfigValue("ui.use-batched-renderer")
 	public static boolean useBatchedRenderer = false;
 

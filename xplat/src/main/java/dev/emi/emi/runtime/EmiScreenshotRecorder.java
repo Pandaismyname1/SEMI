@@ -124,7 +124,10 @@ public class EmiScreenshotRecorder {
 				for (int i1 = 0; i1 < j; i1++) {
 					for (int j1 = 0; j1 < i; j1++) {
 						int k1 = mappedview.data().getInt((j1 + i1 * i) * gputexture.getFormat().pixelSize());
-						nativeimage.setPixelABGR(j1, j - i1 - 1, k1 | 0xFF000000);
+						// Unlike vanilla's screenshot of the main framebuffer, this target is
+						// cleared to (0, 0, 0, 0), so the alpha read back is meaningful and is
+						// kept to preserve the recipe's transparent background
+						nativeimage.setPixelABGR(j1, j - i1 - 1, k1);
 					}
 				}
 

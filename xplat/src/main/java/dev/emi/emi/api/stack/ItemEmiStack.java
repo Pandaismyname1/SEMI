@@ -37,8 +37,6 @@ public class ItemEmiStack extends EmiStack implements Batchable {
 	private final Item item;
 	private final DataComponentPatch componentChanges;
 
-	private boolean unbatchable;
-
 	public ItemEmiStack(ItemStack stack) {
 		this(stack, stack.getCount());
 	}
@@ -120,20 +118,31 @@ public class ItemEmiStack extends EmiStack implements Batchable {
 		return state.usesBlockLight();
 	}
 	
+	/**
+	 * Always true on 26.1: EMI's own batching built a mesh out of an item's baked quads, which
+	 * the {@code ItemStackRenderState} pipeline no longer exposes in a form that can be replayed
+	 * into a shared buffer. Vanilla's {@code GuiRenderer} already renders each distinct GUI item
+	 * once into a {@code GuiItemAtlas} and blits the result, so there is nothing left to batch.
+	 * See D7 in the port decision log.
+	 */
 	@Override
 	public boolean isUnbatchable() {
-		ItemStack stack = getItemStack();
-		return unbatchable || stack.hasFoil() || stack.isDamaged() || !EmiAgnos.canBatch(stack);
+		return true;
 	}
-	
+
+	/**
+	 * No-op, see {@link #isUnbatchable()}.
+	 */
 	@Override
 	public void setUnbatchable() {
-		this.unbatchable = true;
 	}
-	
+
+	/**
+	 * No-op, see {@link #isUnbatchable()}. Nothing reaches this, as the stack always reports
+	 * itself unbatchable, but it must not draw a half rendered item if something ever does.
+	 */
 	@Override
 	public void renderForBatch(MultiBufferSource vcp, GuiGraphicsExtractor draw, int x, int y, int z, float delta) {
-		unbatchable = true;
 	}
 
 	@Override
