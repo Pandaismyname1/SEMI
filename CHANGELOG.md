@@ -17,4 +17,5 @@
 
 ### Tweaks
 * JEMI (JEI compatibility) compiles against the JEI 31.4 API.
+* `EmiPort`'s client-only helpers (`newButton`, `focus`, `getGuiScale`, the number-provider resolution) moved to `EmiPortClient`; `EmiPort` is not part of the public API but plugins that used those helpers must update.
 * The "server does not synchronize recipes" warning now says exactly what is unavailable (crafting and brewing recipes; fuel and composting values unless the server runs SEMI).
