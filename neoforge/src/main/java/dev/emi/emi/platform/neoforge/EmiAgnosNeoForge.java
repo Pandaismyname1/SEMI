@@ -282,12 +282,21 @@ public class EmiAgnosNeoForge extends EmiAgnos {
 		return fs.getFluid().getFluidType().isLighterThanAir();
 	}
 
+	/**
+	 * 1.21 read the still texture and tint from {@code IClientFluidTypeExtensions}, which on 26.1
+	 * only carries fog and overlay hooks: NeoForge moved fluid appearance onto vanilla's
+	 * {@code FluidStateModelSet}, with its own {@code FluidTintSource} for the tint. Reading that
+	 * model is therefore the loader supported path and picks up mod fluids.
+	 */
 	@Override
 	protected void renderFluidAgnos(FluidEmiStack stack, GuiGraphicsExtractor draw, int x, int y, float delta, int xOff, int yOff, int width, int height) {
 		Fluid fluid = stack.getKeyOfType(Fluid.class);
 		Minecraft client = Minecraft.getInstance();
 		net.minecraft.client.renderer.block.FluidModel fluidModel = client.getModelManager().getFluidStateModelSet().get(fluid.defaultFluidState());
 		TextureAtlasSprite sprite = fluidModel.stillMaterial().sprite();
+		if (sprite == null) {
+			return;
+		}
 		int color = -1;
 		if (fluidModel.tintSource() instanceof net.neoforged.neoforge.client.fluid.FluidTintSource fluidTintSource) {
 			color = fluidTintSource.color(fluid.defaultFluidState());

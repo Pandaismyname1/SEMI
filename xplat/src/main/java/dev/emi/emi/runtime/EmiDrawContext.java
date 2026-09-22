@@ -15,15 +15,33 @@ import org.joml.Matrix3x2fStack;
 public class EmiDrawContext {
 	private final Minecraft client = Minecraft.getInstance();
 	private final GuiGraphicsExtractor context;
-	private boolean overlay = false;
-	private int color = -1;
+	/**
+	 * The current global tint, standing in for 1.21's {@code RenderSystem.setShaderColor}.
+	 * GUI rendering is single threaded, so a single static value behaves like the old global
+	 * shader color: every wrapper, including ones created deeper in the call stack from a raw
+	 * {@link GuiGraphicsExtractor}, observes the tint set by an outer wrapper.
+	 * Note that items go through {@code ItemStackRenderState} in 26.1 and cannot be tinted.
+	 */
+	private static int color = -1;
 	private static final List<Runnable> DEFERRED_TOOLTIPS = new ArrayList<>();
-	
+	/**
+	 * The last raw context seen by {@link #wrap}. Vanilla allocates a fresh
+	 * {@link GuiGraphicsExtractor} every frame, so a change here means a new frame (or a
+	 * detached context, like the one used for recipe screenshots) has started, and any tint or
+	 * deferred tooltip left behind by the previous one is stale.
+	 */
+	private static GuiGraphicsExtractor lastContext = null;
+
 	private EmiDrawContext(GuiGraphicsExtractor context) {
 		this.context = context;
 	}
 
 	public static EmiDrawContext wrap(GuiGraphicsExtractor context) {
+		if (context != lastContext) {
+			lastContext = context;
+			color = -1;
+			DEFERRED_TOOLTIPS.clear();
+		}
 		return new EmiDrawContext(context);
 	}
 
@@ -115,8 +133,15 @@ public class EmiDrawContext {
 		context.centeredText(client.font, text.getVisualOrderText(), x, y, opaqueColor(color));
 	}
 
-	private static int opaqueColor(int color) {
-		return color | 0xFF000000;
+	/**
+	 * Vanilla's convention for text colors: a color with no meaningful alpha (the top six bits
+	 * are all zero) is treated as fully opaque, anything else keeps the alpha it was given.
+	 */
+	public static int opaqueColor(int color) {
+		if ((color & 0xFC000000) == 0) {
+			return color | 0xFF000000;
+		}
+		return color;
 	}
 
 	public void enableDepthTest() {
@@ -129,10 +154,6 @@ public class EmiDrawContext {
 	}
 
 	public void disableBlend() {
-	}
-
-	public void setOverlay(boolean overlay) {
-		this.overlay = overlay;
 	}
 
 	public void resetColor() {
@@ -148,14 +169,7 @@ public class EmiDrawContext {
 		int gi = (int)(g * 255) & 0xFF;
 		int bi = (int)(b * 255) & 0xFF;
 		int ai = (int)(a * 255) & 0xFF;
-		this.color = (ai << 24) | (ri << 16) | (gi << 8) | bi;
-		if (ai == 255 && ri == 255 && gi == 255 && bi == 255) {
-			this.color = -1;
-		}
-	}
-
-	public int getColor() {
-		return color;
+		EmiDrawContext.color = (ai << 24) | (ri << 16) | (gi << 8) | bi;
 	}
 
 	public void drawStack(EmiIngredient stack, int x, int y) {
@@ -177,10 +191,11 @@ public class EmiDrawContext {
 	public void flushDeferredTooltips() {
 		if (!DEFERRED_TOOLTIPS.isEmpty()) {
 			context.nextStratum();
-			for (Runnable r : DEFERRED_TOOLTIPS) {
+			List<Runnable> tooltips = List.copyOf(DEFERRED_TOOLTIPS);
+			DEFERRED_TOOLTIPS.clear();
+			for (Runnable r : tooltips) {
 				r.run();
 			}
-			DEFERRED_TOOLTIPS.clear();
 		}
 	}
 }

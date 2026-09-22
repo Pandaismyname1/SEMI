@@ -102,7 +102,14 @@ public class TagEmiIngredient implements EmiIngredient {
 		EmiDrawContext context = EmiDrawContext.wrap(draw);
 
 		if ((flags & RENDER_ICON) != 0) {
-			if (stacks.size() > 0) {
+			List<EmiTags.TagIconLayer> icon = EmiTags.getTagIcon(tagKey.getCustomModel());
+			if (icon != null) {
+				// 1.21 rendered a baked model here; 26.1 has no standalone model registry, so the
+				// tag model is resolved down to flat textures at reload and blitted over the slot
+				for (EmiTags.TagIconLayer layer : icon) {
+					context.drawTexture(layer.texture(), x + layer.x(), y, layer.width(), 16, layer.x(), 0, layer.width(), 16, 16, 16);
+				}
+			} else if (stacks.size() > 0) {
 				stacks.get(0).render(context.raw(), x, y, delta, -1 ^ RENDER_AMOUNT);
 			}
 		}

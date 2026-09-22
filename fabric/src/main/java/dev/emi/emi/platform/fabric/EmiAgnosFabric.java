@@ -216,11 +216,20 @@ public class EmiAgnosFabric extends EmiAgnos {
 		return FluidVariantAttributes.isLighterThanAir(fluid);
 	}
 
+	/**
+	 * 1.21 read the sprite from {@code FluidVariantRendering.getSprites}, which no longer exists:
+	 * fabric-rendering-fluids-v1 6.x registers fluid models into vanilla's {@code FluidStateModelSet}
+	 * (see its {@code FluidStateModelSetMixin}), so reading that set is the loader supported path
+	 * and picks up mod fluids. The tint still comes from the Fabric API.
+	 */
 	@Override
 	protected void renderFluidAgnos(FluidEmiStack stack, GuiGraphicsExtractor draw, int x, int y, float delta, int xOff, int yOff, int width, int height) {
 		Fluid fluid = stack.getKeyOfType(Fluid.class);
 		net.minecraft.client.renderer.block.FluidModel fluidModel = Minecraft.getInstance().getModelManager().getFluidStateModelSet().get(fluid.defaultFluidState());
 		TextureAtlasSprite sprite = fluidModel.stillMaterial().sprite();
+		if (sprite == null) {
+			return;
+		}
 		FluidVariant fluidVariant = FluidVariant.of(fluid, stack.getComponentChanges());
 		int color = FluidVariantRendering.getColor(fluidVariant);
 		EmiRenderHelper.drawTintedSprite(draw, sprite, color, x, y, xOff, yOff, width, height);

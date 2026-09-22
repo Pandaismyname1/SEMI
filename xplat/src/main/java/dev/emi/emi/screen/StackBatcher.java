@@ -79,8 +79,14 @@ public class StackBatcher {
 
 	public static final List<RenderType> EXTRA_RENDER_LAYERS = Lists.newArrayList();
 
+	/**
+	 * Always false on 26.1. EMI's batcher replayed an item's baked quads into a shared mesh, which
+	 * the {@code ItemStackRenderState} pipeline no longer allows, and vanilla's {@code GuiRenderer}
+	 * caches GUI items in its own {@code GuiItemAtlas} anyway. The config option is kept so that
+	 * existing config files stay valid; see D7 in the port decision log.
+	 */
 	public static boolean isEnabled() {
-		return EmiConfig.useBatchedRenderer;
+		return false;
 	}
 
 	public StackBatcher() {
