@@ -5,7 +5,6 @@ import java.util.function.Consumer;
 import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.core.Holder;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
@@ -70,17 +69,6 @@ public final class ContextNumbers {
 	 *	a reference resolves to zero
 	 * @param unhandled receives the registry id of every provider type this does not understand
 	 */
-	public static float expectedValue(ResolvableInt value,
-			@Nullable HolderLookup.RegistryLookup<ContextIntProvider> providers, Consumer<String> unhandled) {
-		if (value instanceof ResolvableInt.Constant constant) {
-			return constant.value();
-		} else if (value instanceof ResolvableInt.Reference reference && providers != null) {
-			return providers.get(reference.key())
-				.map(holder -> expectedValue(holder.value(), unhandled)).orElse(0f);
-		}
-		return 0;
-	}
-
 	public static float expectedValue(ContextIntProvider provider, Consumer<String> unhandled) {
 		return expectedValue(provider, unhandled, 0, new int[] {MAX_VISITS});
 	}

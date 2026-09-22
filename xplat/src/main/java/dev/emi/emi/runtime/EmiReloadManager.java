@@ -198,6 +198,18 @@ public class EmiReloadManager {
 	 * same lock that reads it, or a {@link #reload()} landing in the gap would set {@code restart}
 	 * on a thread that is about to die and be lost.
 	 */
+	/**
+	 * A pass that cannot run at all (no world, no recipe manager) must not leave the status at
+	 * "reloading": nothing else would reset it and EMI would stay disabled. Publish the error
+	 * status instead, unless a clear or restart is already pending; those decide the status
+	 * themselves.
+	 */
+	private static synchronized void giveUp() {
+		if (!clear && !restart) {
+			status = -1;
+		}
+	}
+
 	private static synchronized boolean restartOrFinish() {
 		if (restart) {
 			return true;
@@ -242,9 +254,11 @@ public class EmiReloadManager {
 					// leave `thread` pointing at a dead thread with the status stuck at 1.
 					if (client.level == null) {
 						EmiReloadLog.warn("World is null");
+						giveUp();
 						continue;
 					} else if (!ProxyRecipeManager.isAvailable()) {
 						EmiReloadLog.warn("Recipe Manager is null");
+						giveUp();
 						continue;
 					}
 					List<EmiPluginContainer> plugins = Lists.newArrayList();

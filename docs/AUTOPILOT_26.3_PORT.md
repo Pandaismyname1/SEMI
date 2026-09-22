@@ -28,9 +28,9 @@ Apply the community fork's 26.2→26.3 delta (`linkfgfgui/26.3`, commits f0e3931
 
 ### C. Quality
 - [x] C1. Adversarial delta review (mixin/accessor targets vs 26.3 bytecode, JEMI vs JEI 31, recipe/sync/network paths, input, rendering), findings fixed.
-- [ ] C2. Second delta review of the fixes, no code defect.
+- [x] C2. Second delta review of the fixes, no code defect (it took five rounds: rounds 2–4 found defects in the new value sync, round 5 found nothing above minor).
 
 ### D. Delivery
-- [ ] D1. Pushed to `origin` as branch `26.3`; README supported-versions table updated on `26.3` and on the default branch.
+- [x] D1. Pushed to `origin` as branch `26.3`; README supported-versions table updated on `26.3` and on the default branch.
 - [x] D2. `CHANGELOG.md` for the 26.3 release.
-- [ ] D3. Report (`docs/AUTOPILOT_26.3_REPORT.md`) and final message.
+- [x] D3. Report (`docs/AUTOPILOT_26.3_REPORT.md`) and final message.

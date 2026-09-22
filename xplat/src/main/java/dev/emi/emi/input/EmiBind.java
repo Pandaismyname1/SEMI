@@ -205,7 +205,7 @@ public class EmiBind {
 
 		public boolean isUnbound() {
 			// Key#equals compares the type as well, which a value-only test would not: the unknown
-			// key and the left mouse button used to share the value 0.
+			// key is keyboard value 0, and a hand-edited config can name mouse button 0.
 			return InputConstants.UNKNOWN.equals(key);
 		}
 

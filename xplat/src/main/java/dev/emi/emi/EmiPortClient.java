@@ -193,7 +193,7 @@ public class EmiPortClient {
         }
         if (!(value instanceof ResolvableInt.Reference reference)) {
             // A shape EMI has never seen; the evaluator would answer zero without saying anything.
-            unhandled.accept(value.getClass().getName());
+            unhandled.accept("ResolvableInt shape " + value.getClass().getName());
             return null;
         }
         Float sent = ContextIntValues.get(reference.key().identifier());
