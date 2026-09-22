@@ -6,6 +6,7 @@ import java.util.concurrent.Executor;
 
 import com.mojang.serialization.Lifecycle;
 
+import dev.emi.emi.data.ContextIntValues;
 import dev.emi.emi.data.EmiData;
 import dev.emi.emi.network.CommandS2CPacket;
 import dev.emi.emi.network.EmiChessPacket;
@@ -16,6 +17,7 @@ import dev.emi.emi.platform.EmiClient;
 import dev.emi.emi.runtime.EmiLog;
 import dev.emi.emi.runtime.EmiReloadManager;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.networking.v1.ClientConfigurationNetworking;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.recipe.v1.sync.ClientRecipeSynchronizedEvent;
@@ -63,6 +65,14 @@ public class EmiClientFabric implements ClientModInitializer {
 			});
 		});
 
+		// Configuration phase: stored before EMI loads anything, so no reload is triggered.
+		ClientConfigurationNetworking.registerGlobalReceiver(EmiNetwork.CONTEXT_INT_VALUES,
+			(payload, context) -> ContextIntValues.set(payload.values(), false));
+		// Play phase: a datapack reload changed the values, so EMI reloads if they actually differ.
+		ContextIntValues.setChangeListener(EmiReloadManager::reloadRecipes);
+		ClientPlayNetworking.registerGlobalReceiver(EmiNetwork.CONTEXT_INT_VALUES,
+			(payload, context) -> context.client().execute(() -> ContextIntValues.set(payload.values(), true)));
+
 		EmiNetwork.initClient(packet -> {
 			if (ClientPlayNetworking.canSend(packet.type())) {
 				ClientPlayNetworking.send(packet);
@@ -89,6 +99,7 @@ public class EmiClientFabric implements ClientModInitializer {
 		});
 
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+			ContextIntValues.clear();
 			EmiAgnosFabric.setReceivedRecipeMap(null);
 			EmiAgnosFabric.consumePendingRecipeMap();
 			warnedAboutMissingRecipes = false;

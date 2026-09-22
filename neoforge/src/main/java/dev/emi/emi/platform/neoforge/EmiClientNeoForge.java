@@ -1,6 +1,7 @@
 package dev.emi.emi.platform.neoforge;
 
 import dev.emi.emi.EmiPort;
+import dev.emi.emi.data.ContextIntValues;
 import dev.emi.emi.data.EmiData;
 import dev.emi.emi.network.EmiNetwork;
 import dev.emi.emi.platform.EmiClient;
@@ -37,6 +38,7 @@ public class EmiClientNeoForge {
 	public static void clientInit(FMLClientSetupEvent event) {
 		EmiClient.init();
 		EmiNetwork.initClient(packet -> ClientPacketDistributor.sendToServer(EmiPacketHandler.wrap(packet)));
+		ContextIntValues.setChangeListener(EmiReloadManager::reloadRecipes);
 		NeoForge.EVENT_BUS.addListener(EmiClientNeoForge::tagsReloaded);
 		NeoForge.EVENT_BUS.addListener(EmiClientNeoForge::recipesReceived);
 		NeoForge.EVENT_BUS.addListener(EmiClientNeoForge::playerLoggedOut);
@@ -87,6 +89,7 @@ public class EmiClientNeoForge {
 	}
 
 	public static void playerLoggedOut(ClientPlayerNetworkEvent.LoggingOut event) {
+		ContextIntValues.clear();
 		EmiAgnosNeoForge.setReceivedRecipeMap(null);
 		warnedAboutEmptyRecipes = false;
 	}

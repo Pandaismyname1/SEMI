@@ -1,0 +1,257 @@
+package dev.emi.emi.data;
+
+import java.util.function.Consumer;
+
+import org.jetbrains.annotations.Nullable;
+
+import net.minecraft.core.Holder;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.HolderSet;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.util.random.Weighted;
+import net.minecraft.world.level.storage.loot.providers.number.ConditionalProvider;
+import net.minecraft.world.level.storage.loot.providers.number.DispatcherProvider;
+import net.minecraft.world.level.storage.loot.providers.number.floats.ContextFloatProvider;
+import net.minecraft.world.level.storage.loot.providers.number.ints.Absolute;
+import net.minecraft.world.level.storage.loot.providers.number.ints.Average;
+import net.minecraft.world.level.storage.loot.providers.number.ints.ConstantValue;
+import net.minecraft.world.level.storage.loot.providers.number.ints.ContextIntProvider;
+import net.minecraft.world.level.storage.loot.providers.number.ints.Difference;
+import net.minecraft.world.level.storage.loot.providers.number.ints.FloorModulus;
+import net.minecraft.world.level.storage.loot.providers.number.ints.FloorQuotient;
+import net.minecraft.world.level.storage.loot.providers.number.ints.FromFloat;
+import net.minecraft.world.level.storage.loot.providers.number.ints.Maximum;
+import net.minecraft.world.level.storage.loot.providers.number.ints.Minimum;
+import net.minecraft.world.level.storage.loot.providers.number.ints.Modulus;
+import net.minecraft.world.level.storage.loot.providers.number.ints.Negate;
+import net.minecraft.world.level.storage.loot.providers.number.ints.Power;
+import net.minecraft.world.level.storage.loot.providers.number.ints.Product;
+import net.minecraft.world.level.storage.loot.providers.number.ints.Quotient;
+import net.minecraft.world.level.storage.loot.providers.number.ints.ResolvableInt;
+import net.minecraft.world.level.storage.loot.providers.number.ints.Sum;
+import net.minecraft.world.level.storage.loot.providers.number.ints.UniformGenerator;
+import net.minecraft.world.level.storage.loot.providers.number.ints.WeightedListValue;
+
+/**
+ * Estimates the value a data driven number provider produces in normal play.
+ * <p>
+ * Since 26.3 values such as a fuel's burn time and an item's composting layers are
+ * {@link ResolvableInt}s pointing into the {@code minecraft:context_int_provider} registry, and a
+ * provider can branch on the state of the block it is used in or roll a random number. EMI shows one
+ * number per item, so a dispatcher follows its default branch, a condition its false branch and a
+ * distribution or a range its mean: that is what a player sees when nothing special is going on.
+ * <p>
+ * This is common code on purpose: the server evaluates the whole registry to send the results to
+ * clients that have no copy of it (see {@link ContextIntValues}), and the client evaluates whatever
+ * it can reach locally.
+ */
+public final class ContextNumbers {
+
+	private ContextNumbers() {
+	}
+
+	/**
+	 * @param providers the number provider registry, or null when none is available, in which case
+	 *	a reference resolves to zero
+	 * @param unhandled receives the registry id of every provider type this does not understand
+	 */
+	public static float expectedValue(ResolvableInt value,
+			@Nullable HolderLookup.RegistryLookup<ContextIntProvider> providers, Consumer<String> unhandled) {
+		if (value instanceof ResolvableInt.Constant constant) {
+			return constant.value();
+		} else if (value instanceof ResolvableInt.Reference reference && providers != null) {
+			return providers.get(reference.key())
+				.map(holder -> expectedValue(holder.value(), unhandled)).orElse(0f);
+		}
+		return 0;
+	}
+
+	public static float expectedValue(ContextIntProvider provider, Consumer<String> unhandled) {
+		if (provider instanceof ConstantValue constant) {
+			return constant.value();
+		} else if (provider instanceof Sum sum) {
+			float total = 0;
+			for (Holder<ContextIntProvider> input : sum.inputs()) {
+				total += expectedValue(input.value(), unhandled);
+			}
+			return total;
+		} else if (provider instanceof Product product) {
+			float total = 1;
+			for (Holder<ContextIntProvider> input : product.inputs()) {
+				total *= expectedValue(input.value(), unhandled);
+			}
+			return total;
+		} else if (provider instanceof Average average) {
+			float total = 0;
+			int count = 0;
+			for (Holder<ContextIntProvider> input : average.inputs()) {
+				total += expectedValue(input.value(), unhandled);
+				count++;
+			}
+			return count == 0 ? 0 : total / count;
+		} else if (provider instanceof Minimum minimum) {
+			return extremum(minimum.inputs(), unhandled, true);
+		} else if (provider instanceof Maximum maximum) {
+			return extremum(maximum.inputs(), unhandled, false);
+		} else if (provider instanceof Absolute absolute) {
+			return Math.abs(expectedValue(absolute.input().value(), unhandled));
+		} else if (provider instanceof Negate negate) {
+			return -expectedValue(negate.input().value(), unhandled);
+		} else if (provider instanceof FromFloat fromFloat) {
+			return expectedValue(fromFloat.input().value(), unhandled);
+		} else if (provider instanceof UniformGenerator uniform) {
+			return (expectedValue(uniform.min().value(), unhandled)
+				+ expectedValue(uniform.max().value(), unhandled)) / 2;
+		} else if (provider instanceof Difference difference) {
+			return expectedValue(difference.left().value(), unhandled)
+				- expectedValue(difference.right().value(), unhandled);
+		} else if (provider instanceof Quotient quotient) {
+			float divisor = expectedValue(quotient.right().value(), unhandled);
+			return divisor == 0 ? 0 : expectedValue(quotient.left().value(), unhandled) / divisor;
+		} else if (provider instanceof FloorQuotient quotient) {
+			float divisor = expectedValue(quotient.right().value(), unhandled);
+			return divisor == 0 ? 0 : (float) Math.floor(expectedValue(quotient.left().value(), unhandled) / divisor);
+		} else if (provider instanceof Modulus modulus) {
+			float divisor = expectedValue(modulus.right().value(), unhandled);
+			return divisor == 0 ? 0 : expectedValue(modulus.left().value(), unhandled) % divisor;
+		} else if (provider instanceof FloorModulus modulus) {
+			float divisor = expectedValue(modulus.right().value(), unhandled);
+			if (divisor == 0) {
+				return 0;
+			}
+			float dividend = expectedValue(modulus.left().value(), unhandled);
+			return (float) (dividend - divisor * Math.floor(dividend / divisor));
+		} else if (provider instanceof Power power) {
+			return (float) Math.pow(expectedValue(power.base().value(), unhandled),
+				expectedValue(power.exponent().value(), unhandled));
+		} else if (provider instanceof DispatcherProvider<?> dispatcher) {
+			// The cases describe special situations (an empty composter always accepting one
+			// layer, for instance); the default is what the player sees in normal use.
+			return expectedValue((ContextIntProvider) dispatcher.defaultValue().value(), unhandled);
+		} else if (provider instanceof ConditionalProvider<?> conditional) {
+			return expectedValue((ContextIntProvider) conditional.onFalse().value(), unhandled);
+		} else if (provider instanceof WeightedListValue weighted) {
+			float total = 0, sum = 0;
+			for (Weighted<Holder<ContextIntProvider>> entry : weighted.distribution().unwrap()) {
+				total += entry.weight();
+				sum += entry.weight() * expectedValue(entry.value().value(), unhandled);
+			}
+			return total == 0 ? 0 : sum / total;
+		}
+		unhandled.accept(typeId(BuiltInRegistries.CONTEXT_INT_PROVIDER_TYPE.getKey(provider.codec()), provider));
+		return 0;
+	}
+
+	public static float expectedValue(ContextFloatProvider provider, Consumer<String> unhandled) {
+		if (provider instanceof net.minecraft.world.level.storage.loot.providers.number.floats.ConstantValue constant) {
+			return constant.value();
+		} else if (provider instanceof net.minecraft.world.level.storage.loot.providers.number.floats.FromInt fromInt) {
+			return expectedValue(fromInt.input().value(), unhandled);
+		} else if (provider instanceof net.minecraft.world.level.storage.loot.providers.number.floats.Sum sum) {
+			float total = 0;
+			for (Holder<ContextFloatProvider> input : sum.inputs()) {
+				total += expectedValue(input.value(), unhandled);
+			}
+			return total;
+		} else if (provider instanceof net.minecraft.world.level.storage.loot.providers.number.floats.Product product) {
+			float total = 1;
+			for (Holder<ContextFloatProvider> input : product.inputs()) {
+				total *= expectedValue(input.value(), unhandled);
+			}
+			return total;
+		} else if (provider instanceof net.minecraft.world.level.storage.loot.providers.number.floats.Average average) {
+			float total = 0;
+			int count = 0;
+			for (Holder<ContextFloatProvider> input : average.inputs()) {
+				total += expectedValue(input.value(), unhandled);
+				count++;
+			}
+			return count == 0 ? 0 : total / count;
+		} else if (provider instanceof net.minecraft.world.level.storage.loot.providers.number.floats.Minimum minimum) {
+			return floatExtremum(minimum.inputs(), unhandled, true);
+		} else if (provider instanceof net.minecraft.world.level.storage.loot.providers.number.floats.Maximum maximum) {
+			return floatExtremum(maximum.inputs(), unhandled, false);
+		} else if (provider instanceof net.minecraft.world.level.storage.loot.providers.number.floats.Length length) {
+			float total = 0;
+			for (Holder<ContextFloatProvider> input : length.inputs()) {
+				float component = expectedValue(input.value(), unhandled);
+				total += component * component;
+			}
+			return (float) Math.sqrt(total);
+		} else if (provider instanceof net.minecraft.world.level.storage.loot.providers.number.floats.Absolute absolute) {
+			return Math.abs(expectedValue(absolute.input().value(), unhandled));
+		} else if (provider instanceof net.minecraft.world.level.storage.loot.providers.number.floats.Negate negate) {
+			return -expectedValue(negate.input().value(), unhandled);
+		} else if (provider instanceof net.minecraft.world.level.storage.loot.providers.number.floats.Ceiling ceiling) {
+			return (float) Math.ceil(expectedValue(ceiling.input().value(), unhandled));
+		} else if (provider instanceof net.minecraft.world.level.storage.loot.providers.number.floats.Floor floor) {
+			return (float) Math.floor(expectedValue(floor.input().value(), unhandled));
+		} else if (provider instanceof net.minecraft.world.level.storage.loot.providers.number.floats.Round round) {
+			return Math.round(expectedValue(round.input().value(), unhandled));
+		} else if (provider instanceof net.minecraft.world.level.storage.loot.providers.number.floats.Truncate truncate) {
+			return (float) (long) expectedValue(truncate.input().value(), unhandled);
+		} else if (provider instanceof net.minecraft.world.level.storage.loot.providers.number.floats.SquareRoot root) {
+			float value = expectedValue(root.input().value(), unhandled);
+			return value < 0 ? 0 : (float) Math.sqrt(value);
+		} else if (provider instanceof net.minecraft.world.level.storage.loot.providers.number.floats.Sine sine) {
+			return (float) Math.sin(expectedValue(sine.input().value(), unhandled));
+		} else if (provider instanceof net.minecraft.world.level.storage.loot.providers.number.floats.Cosine cosine) {
+			return (float) Math.cos(expectedValue(cosine.input().value(), unhandled));
+		} else if (provider instanceof net.minecraft.world.level.storage.loot.providers.number.floats.UniformGenerator uniform) {
+			return (expectedValue(uniform.min().value(), unhandled)
+				+ expectedValue(uniform.max().value(), unhandled)) / 2;
+		} else if (provider instanceof net.minecraft.world.level.storage.loot.providers.number.floats.Difference difference) {
+			return expectedValue(difference.left().value(), unhandled)
+				- expectedValue(difference.right().value(), unhandled);
+		} else if (provider instanceof net.minecraft.world.level.storage.loot.providers.number.floats.Quotient quotient) {
+			float divisor = expectedValue(quotient.right().value(), unhandled);
+			return divisor == 0 ? 0 : expectedValue(quotient.left().value(), unhandled) / divisor;
+		} else if (provider instanceof net.minecraft.world.level.storage.loot.providers.number.floats.Modulus modulus) {
+			float divisor = expectedValue(modulus.right().value(), unhandled);
+			return divisor == 0 ? 0 : expectedValue(modulus.left().value(), unhandled) % divisor;
+		} else if (provider instanceof net.minecraft.world.level.storage.loot.providers.number.floats.Power power) {
+			return (float) Math.pow(expectedValue(power.base().value(), unhandled),
+				expectedValue(power.exponent().value(), unhandled));
+		} else if (provider instanceof DispatcherProvider<?> dispatcher) {
+			return expectedValue((ContextFloatProvider) dispatcher.defaultValue().value(), unhandled);
+		} else if (provider instanceof ConditionalProvider<?> conditional) {
+			return expectedValue((ContextFloatProvider) conditional.onFalse().value(), unhandled);
+		} else if (provider instanceof net.minecraft.world.level.storage.loot.providers.number.floats.WeightedListValue weighted) {
+			float total = 0, sum = 0;
+			for (Weighted<Holder<ContextFloatProvider>> entry : weighted.distribution().unwrap()) {
+				total += entry.weight();
+				sum += entry.weight() * expectedValue(entry.value().value(), unhandled);
+			}
+			return total == 0 ? 0 : sum / total;
+		}
+		unhandled.accept(typeId(BuiltInRegistries.CONTEXT_FLOAT_PROVIDER_TYPE.getKey(provider.codec()), provider));
+		return 0;
+	}
+
+	private static float extremum(HolderSet<ContextIntProvider> inputs, Consumer<String> unhandled, boolean min) {
+		Float best = null;
+		for (Holder<ContextIntProvider> input : inputs) {
+			float value = expectedValue(input.value(), unhandled);
+			if (best == null || (min ? value < best : value > best)) {
+				best = value;
+			}
+		}
+		return best == null ? 0 : best;
+	}
+
+	private static float floatExtremum(HolderSet<ContextFloatProvider> inputs, Consumer<String> unhandled, boolean min) {
+		Float best = null;
+		for (Holder<ContextFloatProvider> input : inputs) {
+			float value = expectedValue(input.value(), unhandled);
+			if (best == null || (min ? value < best : value > best)) {
+				best = value;
+			}
+		}
+		return best == null ? 0 : best;
+	}
+
+	private static String typeId(@Nullable Identifier id, Object provider) {
+		return id != null ? id.toString() : provider.getClass().getName();
+	}
+}

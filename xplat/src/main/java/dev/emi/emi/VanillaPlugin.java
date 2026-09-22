@@ -103,6 +103,8 @@ import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import it.unimi.dsi.fastutil.objects.Object2FloatMap;
+import it.unimi.dsi.fastutil.objects.Object2FloatOpenHashMap;
 import com.google.common.collect.Sets;
 
 import org.jetbrains.annotations.Nullable;
@@ -131,6 +133,7 @@ import dev.emi.emi.api.widget.GeneratedSlotWidget;
 import dev.emi.emi.config.EffectLocation;
 import dev.emi.emi.config.EmiConfig;
 import dev.emi.emi.config.FluidUnit;
+import dev.emi.emi.data.ContextIntValues;
 import dev.emi.emi.handler.CookingRecipeHandler;
 import dev.emi.emi.handler.CraftingRecipeHandler;
 import dev.emi.emi.handler.InventoryRecipeHandler;
@@ -760,49 +763,39 @@ public class VanillaPlugin implements EmiPlugin {
 	}
 
 	private static void addComposting(EmiRegistry registry, Set<Item> hiddenItems) {
-		Set<Item> compostables = Sets.newHashSet();
+		// Resolved once, not once per item, and certainly not once per comparison
+		EmiPortClient.ContextIntSource source = EmiPortClient.contextIntSource();
+		Set<String> unhandledTypes = Sets.newLinkedHashSet();
+		Object2FloatMap<Item> chances = new Object2FloatOpenHashMap<>();
 		int unresolved = 0;
 		for (Item item : EmiPort.getItemRegistry()) {
-			if (item.components().get(DataComponents.COMPOSTABLE) == null) {
+			Compostable compostable = item.components().get(DataComponents.COMPOSTABLE);
+			if (compostable == null) {
 				continue;
 			}
-			if (getCompostChance(item) > 0) {
-				compostables.add(item);
+			float chance = EmiPortClient.getExpectedValue(compostable.layers(), source, unhandledTypes::add);
+			if (chance > 0) {
+				chances.put(item, chance);
 			} else {
 				unresolved++;
 			}
 		}
-		if (unresolved > 0 && EmiPortClient.getContextIntProviders().isEmpty()) {
-			EmiReloadLog.warn("The server does not synchronize the number provider registry, so the compost"
-				+ " chance of " + unresolved + " items is unknown. Those items are not listed as compostable.");
+		if (unresolved > 0 && source.isEmpty()) {
+			EmiReloadLog.warn("The compost chance of " + unresolved + " items is unknown, so they are not"
+				+ " listed as compostable. " + ContextIntValues.MISSING_NUMBER_PROVIDERS);
 		}
-		compressRecipesToTags(compostables, (a, b) -> {
-				return Float.compare(getCompostChance(a), getCompostChance(b));
+		ContextIntValues.warnUnhandled(unhandledTypes, "composting chances");
+		compressRecipesToTags(chances.keySet(), (a, b) -> {
+				return Float.compare(chances.getFloat(a), chances.getFloat(b));
 			}, tag -> {
 				EmiIngredient stack = EmiIngredient.of(tag.raw());
 				Item item = stack.getEmiStacks().get(0).getItemStack().getItem();
-				float chance = getCompostChance(item);
-				registry.addRecipe(new EmiCompostingRecipe(stack, chance, synthetic("composting/tag", EmiUtil.subId(tag.id()))));
+				registry.addRecipe(new EmiCompostingRecipe(stack, chances.getFloat(item), synthetic("composting/tag", EmiUtil.subId(tag.id()))));
 			}, item -> {
 				if (!hiddenItems.contains(item)) {
-					float chance = getCompostChance(item);
-					registry.addRecipe(new EmiCompostingRecipe(EmiStack.of(item), chance, synthetic("composting/item", EmiUtil.subId(item))));
+					registry.addRecipe(new EmiCompostingRecipe(EmiStack.of(item), chances.getFloat(item), synthetic("composting/item", EmiUtil.subId(item))));
 				}
 			});
-	}
-
-	/**
-	 * Since 26.3 the items a composter accepts are declared by the {@code compostable} data
-	 * component, whose value is the number of layers the item adds. Vanilla items add either zero
-	 * or one layer, so the expected number of layers is the chance EMI used to read off
-	 * {@code ComposterBlock.COMPOSTABLES}.
-	 */
-	private static float getCompostChance(Item item) {
-		Compostable compostable = item.components().get(DataComponents.COMPOSTABLE);
-		if (compostable == null) {
-			return 0;
-		}
-		return EmiPortClient.getExpectedValue(compostable.layers());
 	}
 
 	private static void compressRecipesToTags(Set<Item> stacks, Comparator<Item> comparator, Consumer<EmiTagKey<Item>> tagConsumer, Consumer<Item> itemConsumer) {

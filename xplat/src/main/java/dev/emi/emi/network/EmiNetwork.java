@@ -12,6 +12,9 @@ public class EmiNetwork {
 	public static final CustomPacketPayload.Type<CommandS2CPacket> COMMAND = new CustomPacketPayload.Type<CommandS2CPacket>(EmiPort.id("emi:command"));
 	public static final CustomPacketPayload.Type<EmiChessPacket> CHESS = new CustomPacketPayload.Type<EmiChessPacket>(EmiPort.id("emi:chess"));
 	public static final CustomPacketPayload.Type<PingS2CPacket> PING = new CustomPacketPayload.Type<PingS2CPacket>(EmiPort.id("emi:ping"));
+	/** Sent in the configuration phase, and again after a datapack reload; see {@code ContextIntValues}. */
+	public static final CustomPacketPayload.Type<ContextIntValuesS2CPacket> CONTEXT_INT_VALUES
+		= new CustomPacketPayload.Type<ContextIntValuesS2CPacket>(EmiPort.id("emi:context_int_values"));
 	private static BiConsumer<ServerPlayer, EmiPacket> clientSender;
 	private static Consumer<EmiPacket> serverSender;
 

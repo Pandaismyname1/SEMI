@@ -5,8 +5,10 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
@@ -34,6 +36,7 @@ import org.jetbrains.annotations.Nullable;
 import dev.emi.emi.EmiPort;
 import dev.emi.emi.EmiPortClient;
 import dev.emi.emi.api.EmiRegistry;
+import dev.emi.emi.data.ContextIntValues;
 import dev.emi.emi.api.stack.EmiIngredient;
 import dev.emi.emi.api.stack.EmiStack;
 import dev.emi.emi.api.stack.FluidEmiStack;
@@ -222,12 +225,14 @@ public abstract class EmiAgnos {
 	 */
 	protected Map<Item, Integer> getFuelMapAgnos() {
 		Map<Item, Integer> fuelMap = Maps.newLinkedHashMap();
-		boolean resolvable = EmiPortClient.getContextIntProviders().isPresent();
+		// Resolved once, not once per item: the lookup walks the integrated server's registries
+		EmiPortClient.ContextIntSource source = EmiPortClient.contextIntSource();
+		Set<String> unhandledTypes = Sets.newLinkedHashSet();
 		int unresolved = 0;
 		for (Item item : EmiPort.getItemRegistry()) {
 			CookingFuel fuel = item.components().get(DataComponents.COOKING_FUEL);
 			if (fuel != null) {
-				int time = (int) EmiPortClient.getExpectedValue(fuel.burnTime());
+				int time = (int) EmiPortClient.getExpectedValue(fuel.burnTime(), source, unhandledTypes::add);
 				if (time > 0) {
 					fuelMap.put(item, time);
 				} else {
@@ -235,12 +240,14 @@ public abstract class EmiAgnos {
 				}
 			}
 		}
-		if (unresolved > 0 && !resolvable) {
-			EmiReloadLog.warn("The server does not synchronize the number provider registry, so the burn"
-				+ " time of " + unresolved + " fuels is unknown. Those items are not listed as fuels.");
+		if (unresolved > 0 && source.isEmpty()) {
+			EmiReloadLog.warn("The burn time of " + unresolved + " fuels is unknown, so they are not listed"
+				+ " as fuels. " + ContextIntValues.MISSING_NUMBER_PROVIDERS);
 		}
+		ContextIntValues.warnUnhandled(unhandledTypes, "fuel burn times");
 		return fuelMap;
 	}
+
 
 	public static boolean isEnchantable(ItemStack stack, Enchantment enchantment) {
 		return delegate.isEnchantableAgnos(stack, enchantment);
