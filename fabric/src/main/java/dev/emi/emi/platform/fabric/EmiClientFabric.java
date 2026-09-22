@@ -1,7 +1,10 @@
 package dev.emi.emi.platform.fabric;
 
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+
+import com.mojang.serialization.Lifecycle;
 
 import dev.emi.emi.data.EmiData;
 import dev.emi.emi.network.CommandS2CPacket;
@@ -22,9 +25,14 @@ import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamDecoder;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.core.MappedRegistry;
+import net.minecraft.core.RegistrationInfo;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.resources.PreparableReloadListener;
+import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeMap;
 
 public class EmiClientFabric implements ClientModInitializer {
@@ -69,7 +77,7 @@ public class EmiClientFabric implements ClientModInitializer {
 		// report its own half. This event only records the map; the "recipes" half is reported by
 		// the vanilla recipe packet instead, see onVanillaRecipesReceived.
 		ClientRecipeSynchronizedEvent.EVENT.register((client, recipes) -> {
-			EmiAgnosFabric.setPendingRecipeMap(RecipeMap.create(recipes.recipes()));
+			EmiAgnosFabric.setPendingRecipeMap(toRecipeMap(recipes.recipes()));
 		});
 
 		// Tags arrive during the configuration phase on join and in the play phase on /reload;
@@ -118,6 +126,28 @@ public class EmiClientFabric implements ClientModInitializer {
 		}
 		EmiAgnosFabric.setReceivedRecipeMap(map);
 		EmiReloadManager.reloadRecipes();
+	}
+
+	/**
+	 * Turns the recipes Fabric synchronized into a {@link RecipeMap}.
+	 * <p>
+	 * 26.3 made recipes a datapack registry, and {@code RecipeMap.create} now takes a
+	 * {@code HolderLookup} instead of the plain collection the sync event hands out, so the
+	 * recipes are put into a throwaway registry first. NeoForge patches in its own
+	 * {@code RecipeMap.createClient} for this; Fabric has no equivalent.
+	 */
+	private static RecipeMap toRecipeMap(Collection<RecipeHolder<?>> recipes) {
+		MappedRegistry<Recipe<?>> registry = new MappedRegistry<>(Registries.RECIPE, Lifecycle.experimental());
+		for (RecipeHolder<?> holder : recipes) {
+			try {
+				registry.register(holder.id(), holder.value(), RegistrationInfo.BUILT_IN);
+			} catch (Exception e) {
+				// A duplicate id or a recipe instance shared between two ids; skipping the one
+				// entry is better than losing every recipe
+				EmiLog.error("Could not record the synchronized recipe " + holder.id().identifier(), e);
+			}
+		}
+		return RecipeMap.create(registry.freeze());
 	}
 
 	private <T extends EmiPacket> void registerPacketReader(CustomPacketPayload.Type<T> id, StreamDecoder<RegistryFriendlyByteBuf, T> decode) {

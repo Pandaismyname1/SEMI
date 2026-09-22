@@ -99,7 +99,7 @@ public class JemiIngredientAcceptor implements IIngredientAcceptor<JemiIngredien
 		// no world is loaded yet.
 		return level != null
 			? SlotDisplayContext.fromLevel(level)
-			: new ContextMap.Builder().create(SlotDisplayContext.CONTEXT);
+			: ContextMap.builder().buildAndValidate(SlotDisplayContext.CONTEXT);
 	}
 
 	@Override
