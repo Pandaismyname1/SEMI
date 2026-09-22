@@ -209,6 +209,8 @@ public class JemiPlugin implements IModPlugin, EmiPlugin {
 		categoryMap.put(RecipeTypes.INFORMATION, VanillaEmiRecipeCategories.INFO);
 		
 		CATEGORY_MAP.clear();
+		// Every memoized slots view describes the JEI runtime that is being replaced.
+		JemiRecipeHandler.clearCaches();
 		EmiRecipeFiller.extraHandlers = JemiPlugin::getRecipeHandler;
 
 		List<IRecipeCategory<?>> categories = runtime.getRecipeManager().createRecipeCategoryLookup().includeHidden().get().toList();

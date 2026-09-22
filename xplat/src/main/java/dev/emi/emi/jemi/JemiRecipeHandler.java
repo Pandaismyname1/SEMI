@@ -1,8 +1,12 @@
 package dev.emi.emi.jemi;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.WeakHashMap;
 
 import dev.emi.emi.api.recipe.EmiCraftingRecipe;
 import dev.emi.emi.api.recipe.EmiPlayerInventory;
@@ -32,10 +36,12 @@ import mezz.jei.api.recipe.RecipeIngredientRole;
 import mezz.jei.api.recipe.category.IRecipeCategory;
 import mezz.jei.api.recipe.transfer.IRecipeTransferError;
 import mezz.jei.api.recipe.transfer.IRecipeTransferHandler;
+import mezz.jei.api.recipe.types.IRecipeHolderType;
 import mezz.jei.api.recipe.types.IRecipeType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -49,15 +55,27 @@ public class JemiRecipeHandler<T extends AbstractContainerMenu, R> implements Em
 	private final IRecipeType<R> type;
 	private final boolean isUniversal;
 	public IRecipeTransferHandler<T, R> handler;
-	// Synthesizing a slots view runs the JEI category's setRecipe and coerces every
-	// stack, and render()/canCraft() ask for one every frame, so the last result is
-	// memoized. A handler is created per fill attempt, so a single-entry cache keyed
-	// on the recipe is enough. positioned records whether the cached view was built
-	// with EMI's laid-out widgets, since the fallback path reads slot positions off
-	// them; a view built without them must not be reused when they are available.
-	private EmiRecipe cachedViewRecipe;
-	private boolean cachedViewPositioned;
-	private JemiRecipeSlotsView cachedView;
+	// Synthesizing a slots view runs the JEI category's setRecipe and coerces every stack, and
+	// render()/canCraft() ask for one every frame, so the result is memoized. The memo has to be
+	// static: JemiPlugin.getRecipeHandler builds a new handler for every call, so a per-instance
+	// cache never hit and the whole layout was rebuilt each frame. The keys are weak so a recipe
+	// that goes away with a reload does not pin its layout, and the maps are cleared outright when
+	// JEMI reloads. "positioned" views were built with EMI's laid-out widgets, which the fallback
+	// path reads slot positions off; a bare view must not be reused when those are available.
+	private static final Map<EmiRecipe, CachedView> POSITIONED_VIEWS = Collections.synchronizedMap(new WeakHashMap<>());
+	private static final Map<EmiRecipe, CachedView> BARE_VIEWS = Collections.synchronizedMap(new WeakHashMap<>());
+	// Recipes whose view could not be built, so the failure is reported once instead of every frame.
+	private static final Set<EmiRecipe> FAILED_VIEWS = Collections.newSetFromMap(Collections.synchronizedMap(new WeakHashMap<>()));
+
+	private static record CachedView(IRecipeType<?> type, JemiRecipeSlotsView view) {
+	}
+
+	/** Called when JEMI reloads, since every cached view describes the old JEI runtime. */
+	public static void clearCaches() {
+		POSITIONED_VIEWS.clear();
+		BARE_VIEWS.clear();
+		FAILED_VIEWS.clear();
+	}
 
 	public JemiRecipeHandler(IRecipeTransferHandler<T, R> handler) {
 		this.handler = handler;
@@ -154,7 +172,14 @@ public class JemiRecipeHandler<T extends AbstractContainerMenu, R> implements Em
 				} catch (Exception e) {
 					EmiLog.error("Error showing JEI transfer error", e);
 				} finally {
-					draw.pop();
+					try {
+						draw.pop();
+					} catch (Exception e) {
+						// A third-party showError that pushed and popped unevenly leaves the stack
+						// in a state pop() rejects. Nothing useful can be done about it, but it
+						// must not escape render() and take the whole screen down with it.
+						EmiLog.error("Error restoring the matrix after a JEI transfer error", e);
+					}
 				}
 				view.getSlotViews().forEach(v -> {
 					if (v instanceof JemiRecipeSlot jrs && jrs.highlight != 0 && !jrs.isEmpty()) {
@@ -197,14 +222,16 @@ public class JemiRecipeHandler<T extends AbstractContainerMenu, R> implements Em
 
 	private JemiRecipeSlotsView getSlotsView(EmiRecipe recipe, R rawRecipe, List<Widget> widgets) {
 		boolean positioned = !widgets.isEmpty();
-		if (cachedView != null && cachedViewRecipe == recipe && (cachedViewPositioned || !positioned)) {
-			return cachedView;
+		CachedView cached = POSITIONED_VIEWS.get(recipe);
+		if ((cached == null || cached.type() != type) && !positioned) {
+			cached = BARE_VIEWS.get(recipe);
+		}
+		if (cached != null && cached.type() == type) {
+			return cached.view();
 		}
 		JemiRecipeSlotsView view = createSlotsView(recipe, rawRecipe, type, widgets);
 		if (view != null) {
-			cachedViewRecipe = recipe;
-			cachedViewPositioned = positioned;
-			cachedView = view;
+			(positioned ? POSITIONED_VIEWS : BARE_VIEWS).put(recipe, new CachedView(type, view));
 		}
 		return view;
 	}
@@ -228,7 +255,7 @@ public class JemiRecipeHandler<T extends AbstractContainerMenu, R> implements Em
 		// it does not accept only throws a ClassCastException out of setRecipe, once per
 		// frame. Only drive the category when the recipe really is of its type.
 		if (rawRecipe != null && category != null && type != null && type.getRecipeClass() != null
-				&& type.getRecipeClass().isInstance(rawRecipe)) {
+				&& type.getRecipeClass().isInstance(rawRecipe) && isOfHolderType(type, rawRecipe)) {
 			try {
 				builder = new JemiRecipeLayoutBuilder();
 				@SuppressWarnings("unchecked")
@@ -241,7 +268,9 @@ public class JemiRecipeHandler<T extends AbstractContainerMenu, R> implements Em
 					builder = null;
 				}
 			} catch (Exception e) {
-				EmiLog.error("Error building JEI slots view from category", e);
+				if (FAILED_VIEWS.add(recipe)) {
+					EmiLog.error("Error building JEI slots view from category", e);
+				}
 				builder = null;
 			}
 		}
@@ -296,6 +325,27 @@ public class JemiRecipeHandler<T extends AbstractContainerMenu, R> implements Em
 		}
 
 		return new JemiRecipeSlotsView(builder.slots.stream().map(JemiRecipeSlot::new).toList());
+	}
+
+	/**
+	 * Whether {@code rawRecipe} really belongs to {@code type}.
+	 * <p>
+	 * {@code getRecipeClass()} alone is not enough for a vanilla recipe type: every
+	 * {@link IRecipeHolderType} erases to {@code RecipeHolder.class}, so the {@code isInstance}
+	 * check passes for a holder of any type at all and the category is handed a recipe it cannot
+	 * use. {@code IRecipeHolderType}'s uid is {@code BuiltInRegistries.RECIPE_TYPE.getKey(...)} of
+	 * the type it was created from, so the holder's own registered type is compared against it.
+	 */
+	private static boolean isOfHolderType(IRecipeType<?> type, Object rawRecipe) {
+		try {
+			if (type instanceof IRecipeHolderType<?> && rawRecipe instanceof RecipeHolder<?> holder) {
+				return type.getUid().equals(BuiltInRegistries.RECIPE_TYPE.getKey(holder.value().getType()));
+			}
+		} catch (Exception e) {
+			// A type that cannot even say what it is does not get to drive a category.
+			return false;
+		}
+		return true;
 	}
 
 	@SuppressWarnings("unchecked")

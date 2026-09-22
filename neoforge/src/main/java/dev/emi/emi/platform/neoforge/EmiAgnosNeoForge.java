@@ -72,8 +72,20 @@ public class EmiAgnosNeoForge extends EmiAgnos {
 		EmiAgnos.delegate = new EmiAgnosNeoForge();
 	}
 
+	/**
+	 * Records the map for the current connection, or clears it when passed {@code null}, which is
+	 * what {@code EmiClientNeoForge.playerLoggedOut} does so the next connection starts clean.
+	 */
 	public static void setReceivedRecipeMap(RecipeMap recipeMap) {
 		receivedRecipeMap = recipeMap;
+	}
+
+	/**
+	 * Whether a recipe map has been recorded for the current connection, used to tell "the server
+	 * synchronized recipes" apart from "nothing arrived" before EMI falls back to an empty map.
+	 */
+	public static boolean hasReceivedRecipeMap() {
+		return receivedRecipeMap != null;
 	}
 
 	@Override

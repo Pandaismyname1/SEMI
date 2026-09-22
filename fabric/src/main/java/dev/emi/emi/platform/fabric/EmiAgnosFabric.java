@@ -63,6 +63,10 @@ public class EmiAgnosFabric extends EmiAgnos {
 		EmiAgnos.delegate = new EmiAgnosFabric();
 	}
 
+	// Set by Fabric's ClientRecipeSynchronizedEvent and consumed by the vanilla recipe packet that
+	// always follows it, so a map is only ever used for the sync it belongs to
+	private static volatile RecipeMap pendingRecipeMap;
+
 	public static void setReceivedRecipeMap(RecipeMap recipeMap) {
 		receivedRecipeMap = recipeMap;
 	}
@@ -73,6 +77,22 @@ public class EmiAgnosFabric extends EmiAgnos {
 	 */
 	public static boolean hasReceivedRecipeMap() {
 		return receivedRecipeMap != null;
+	}
+
+	/** Records the map Fabric just synchronized, to be picked up by the vanilla packet after it. */
+	public static void setPendingRecipeMap(RecipeMap recipeMap) {
+		pendingRecipeMap = recipeMap;
+	}
+
+	/**
+	 * Takes the map synchronized for the sync currently being reported, or {@code null} when this
+	 * sync produced none. One-shot, so a {@code /reload} whose sync sends no payload does not
+	 * silently reuse the map from before the reload.
+	 */
+	public static @Nullable RecipeMap consumePendingRecipeMap() {
+		RecipeMap map = pendingRecipeMap;
+		pendingRecipeMap = null;
+		return map;
 	}
 
 	@Override

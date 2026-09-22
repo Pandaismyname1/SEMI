@@ -42,6 +42,7 @@ public class JemiRecipeSlot implements IRecipeSlotDrawable {
 	public final TankInfo tankInfo;
 	public final EmiIngredient stack;
 	public final List<JemiIngredientAcceptor> displayOverrides = Lists.newArrayList();
+	private JemiIngredientAcceptor displayOverride;
 	public SlotWidget widget;
 	public int highlight = 0;
 
@@ -215,13 +216,19 @@ public class JemiRecipeSlot implements IRecipeSlotDrawable {
 	 */
 	@Override
 	public IIngredientAcceptor<?> createDisplayOverrides() {
-		JemiIngredientAcceptor acceptor = new JemiIngredientAcceptor(role);
-		displayOverrides.add(acceptor);
-		return acceptor;
+		// Idempotent, like JEI's own slot: the acceptor is created on the first call and the same
+		// one is handed back afterwards, so a plugin that calls this per ingredient adds them all
+		// to one override instead of creating a fresh, separate override each time.
+		if (displayOverride == null) {
+			displayOverride = new JemiIngredientAcceptor(role);
+			displayOverrides.add(displayOverride);
+		}
+		return displayOverride;
 	}
 
 	@Override
 	public void clearDisplayOverrides() {
+		displayOverride = null;
 		displayOverrides.clear();
 	}
 
