@@ -2,11 +2,11 @@ package dev.emi.emi.data;
 
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Consumer;
 
 import org.jetbrains.annotations.Nullable;
 
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.Registries;
@@ -56,21 +56,24 @@ public class ContextIntValues {
 	}
 
 	/**
-	 * Installed by the client so that a value change arriving in the play phase, that is after a
-	 * datapack reload, can trigger one EMI reload. Values arriving in the configuration phase are
-	 * stored with {@code notify} false, before EMI has loaded anything.
+	 * Installed by the client, and only by the client, so that a change to the values can trigger a
+	 * reload. The listener decides for itself whether a reload is due: values arriving before EMI
+	 * has loaded anything, or while it is waiting for the rest of the server's data, need none.
 	 */
 	public static void setChangeListener(@Nullable Runnable listener) {
 		changeListener = listener;
 	}
 
 	/**
+	 * Stores the values a server sent and tells the listener if they changed. Safe to call from any
+	 * thread and in either connection phase.
+	 *
 	 * @return whether the values differ from the ones already stored
 	 */
-	public static boolean set(Map<Identifier, Float> values, boolean notify) {
+	public static boolean set(Map<Identifier, Float> values) {
 		boolean changed = !received.equals(values);
 		received = Map.copyOf(values);
-		if (changed && notify) {
+		if (changed) {
 			Runnable listener = changeListener;
 			if (listener != null) {
 				listener.run();
@@ -93,23 +96,53 @@ public class ContextIntValues {
 	 */
 	public static Map<Identifier, Float> computeFor(MinecraftServer server) {
 		Map<Identifier, Float> values = Maps.newLinkedHashMap();
+		Set<String> unhandledTypes = Sets.newLinkedHashSet();
+		Set<Identifier> skipped = Sets.newLinkedHashSet();
+		boolean[] truncated = new boolean[1];
 		try {
 			HolderLookup.RegistryLookup<ContextIntProvider> providers = server.reloadableRegistries().lookup()
 				.lookup(Registries.CONTEXT_INT_PROVIDER).orElse(null);
 			if (providers == null) {
+				EmiLog.warn("This server has no " + Registries.CONTEXT_INT_PROVIDER.identifier() + " registry,"
+					+ " so clients cannot be told any fuel burn times or composting chances.");
 				return Map.of();
 			}
-			Consumer<String> unhandled = type -> {
-			};
 			providers.listElements().forEach(reference -> {
-				if (values.size() < MAX_ENTRIES) {
-					values.put(reference.key().identifier(),
-						ContextNumbers.expectedValue(reference.value(), unhandled));
+				if (values.size() >= MAX_ENTRIES) {
+					truncated[0] = true;
+					return;
+				}
+				// Per entry, so that one provider EMI cannot estimate does not make every other
+				// value look unreliable
+				Set<String> entryUnhandled = Sets.newLinkedHashSet();
+				float value = ContextNumbers.expectedValue(reference.value(), entryUnhandled::add);
+				if (entryUnhandled.isEmpty()) {
+					values.put(reference.key().identifier(), value);
+				} else {
+					// Sending a zero would look like a resolved value and silence the client's own
+					// fallbacks and warnings, so the entry is left out entirely
+					unhandledTypes.addAll(entryUnhandled);
+					skipped.add(reference.key().identifier());
 				}
 			});
-		} catch (Exception e) {
-			EmiLog.error("Could not evaluate the number provider registry", e);
+		} catch (Throwable t) {
+			// Deliberately Throwable: a datapack that makes the providers reference each other in a
+			// loop would otherwise take the join or the reload worker down with a StackOverflowError
+			EmiLog.error("Could not evaluate the number provider registry", t);
 			return Map.of();
+		}
+		if (truncated[0]) {
+			EmiLog.warn("This server has more than " + MAX_ENTRIES + " number providers; only the first "
+				+ MAX_ENTRIES + " are sent to clients.");
+		}
+		if (!unhandledTypes.isEmpty()) {
+			EmiLog.warn("EMI cannot estimate the value of the number provider type(s) "
+				+ String.join(", ", unhandledTypes) + ", so " + skipped.size() + " provider(s) are not sent"
+				+ " to clients: " + String.join(", ", skipped.stream().map(Identifier::toString).toList()));
+		}
+		if (values.isEmpty()) {
+			EmiLog.info("No number provider resolved to a value, so clients get no fuel burn times or"
+				+ " composting chances from this server.");
 		}
 		return values;
 	}

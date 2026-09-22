@@ -38,7 +38,8 @@ public class EmiClientNeoForge {
 	public static void clientInit(FMLClientSetupEvent event) {
 		EmiClient.init();
 		EmiNetwork.initClient(packet -> ClientPacketDistributor.sendToServer(EmiPacketHandler.wrap(packet)));
-		ContextIntValues.setChangeListener(EmiReloadManager::reloadRecipes);
+		// EmiReloadManager decides whether a change is worth a reload; see reloadForDataChange.
+		ContextIntValues.setChangeListener(EmiReloadManager::reloadForDataChange);
 		NeoForge.EVENT_BUS.addListener(EmiClientNeoForge::tagsReloaded);
 		NeoForge.EVENT_BUS.addListener(EmiClientNeoForge::recipesReceived);
 		NeoForge.EVENT_BUS.addListener(EmiClientNeoForge::playerLoggedOut);

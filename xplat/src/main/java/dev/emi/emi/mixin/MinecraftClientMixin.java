@@ -12,6 +12,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import dev.emi.emi.data.ContextIntValues;
 import dev.emi.emi.platform.EmiClient;
 import dev.emi.emi.runtime.EmiLog;
 import dev.emi.emi.runtime.EmiReloadManager;
@@ -39,6 +40,9 @@ public class MinecraftClientMixin {
 	@Inject(at = @At("HEAD"), method = "disconnect(Lnet/minecraft/client/gui/screens/Screen;ZZ)V")
 	private void disconnect(CallbackInfo info) {
 		EmiLog.info("Disconnecting from server, EMI data cleared");
+		// Covers a disconnect during the configuration phase too, which the loaders' own play
+		// phase disconnect hooks never see.
+		ContextIntValues.clear();
 		EmiReloadManager.clear();
 		EmiClient.onServer = false;
 	}

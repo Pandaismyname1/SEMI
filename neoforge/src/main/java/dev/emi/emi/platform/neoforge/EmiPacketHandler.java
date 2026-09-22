@@ -9,7 +9,6 @@ import dev.emi.emi.network.EmiNetwork;
 import dev.emi.emi.network.EmiPacket;
 import dev.emi.emi.network.FillRecipeC2SPacket;
 import dev.emi.emi.network.PingS2CPacket;
-import net.minecraft.network.ConnectionProtocol;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.codec.StreamDecoder;
@@ -39,13 +38,12 @@ public class EmiPacketHandler {
     }
 
     /**
-     * Values arriving in the configuration phase are stored quietly, before EMI has loaded
-     * anything; a play phase update means a datapack reload changed them, so EMI reloads, but only
-     * if they actually differ from what it already has.
+     * Storing the values is all this does; whether the change is worth an EMI reload is
+     * {@code EmiReloadManager.reloadForDataChange}'s decision, and it is the same one in either
+     * connection phase.
      */
     private static void handleContextIntValues(ContextIntValuesS2CPacket packet, IPayloadContext context) {
-        boolean play = context.protocol() == ConnectionProtocol.PLAY;
-        context.enqueueWork(() -> ContextIntValues.set(packet.values(), play));
+        context.enqueueWork(() -> ContextIntValues.set(packet.values()));
     }
 
     public static EmiPacket wrap(EmiPacket packet) {

@@ -68,6 +68,30 @@ public class EmiReloadManager {
 		}
 	}
 
+	/**
+	 * A change to server data that is not one of the two halves of the tags/recipes handshake, such
+	 * as new number provider values after a datapack reload.
+	 * <p>
+	 * This must never touch {@link #loadedResourcesMask}: that mask is the handshake's own state,
+	 * and adding a bit to it out of band would leave it stuck and throw every later reload off by
+	 * one half. When a handshake is in progress the reload it ends with picks the new data up by
+	 * itself, because the data is stored before this is called; when a reload is already running,
+	 * {@link #reload()} restarts it, so a change that arrives mid-reload is never missed.
+	 */
+	public static synchronized void reloadForDataChange() {
+		if (loadedResourcesMask != 0) {
+			EmiLog.info("Server data changed, the pending reload will use it");
+			return;
+		}
+		if (status == 0) {
+			// Nothing has been loaded for this connection yet, so the reload that follows the
+			// handshake is the first one and will use the new data anyway.
+			return;
+		}
+		EmiLog.info("Server data changed, reloading EMI");
+		reload();
+	}
+
 	public static void clear() {
 		synchronized (EmiReloadManager.class) {
 			loadedResourcesMask = 0;

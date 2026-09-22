@@ -65,13 +65,13 @@ public class EmiClientFabric implements ClientModInitializer {
 			});
 		});
 
-		// Configuration phase: stored before EMI loads anything, so no reload is triggered.
+		// EmiReloadManager decides whether a change is worth a reload: none is due before EMI has
+		// loaded anything (a join) or while it is waiting for the rest of the server's data.
+		ContextIntValues.setChangeListener(EmiReloadManager::reloadForDataChange);
 		ClientConfigurationNetworking.registerGlobalReceiver(EmiNetwork.CONTEXT_INT_VALUES,
-			(payload, context) -> ContextIntValues.set(payload.values(), false));
-		// Play phase: a datapack reload changed the values, so EMI reloads if they actually differ.
-		ContextIntValues.setChangeListener(EmiReloadManager::reloadRecipes);
+			(payload, context) -> context.client().execute(() -> ContextIntValues.set(payload.values())));
 		ClientPlayNetworking.registerGlobalReceiver(EmiNetwork.CONTEXT_INT_VALUES,
-			(payload, context) -> context.client().execute(() -> ContextIntValues.set(payload.values(), true)));
+			(payload, context) -> context.client().execute(() -> ContextIntValues.set(payload.values())));
 
 		EmiNetwork.initClient(packet -> {
 			if (ClientPlayNetworking.canSend(packet.type())) {
