@@ -30,9 +30,9 @@ Merge the MIT-licensed community port `link-fgfgui/emi@26.1` (remote `linkfgfgui
 ### C. Completion proof
 - [x] C1. `./gradlew :fabric:build` succeeds (JDK 25).
 - [x] C2. `./gradlew :neoforge:build` succeeds (JDK 25).
-- [ ] C3. No leftover conflict markers, no `TODO(port)` or stubbed functionality introduced by this branch.
-- [x] C4. Fabric client launches (runClient), reaches a world, EMI index/UI renders in the inventory (screenshot), log free of mixin apply failures / EMI errors. Verified 2026-09-22: quick-play into saved world, 3731 recipes baked in 495 ms, index/favorites/search/recipe screen/crafting recipe all rendered, clean disconnect. Re-verified on the merged branch (25295fa8): exactly one reload per join (tags then recipes), tag icons render (logs/coals tag models), recipe tree screen opens.
-- [x] C5. NeoForge client launches likewise (screenshot, clean log). Verified 2026-09-22 after the D8 dev-classpath fix: quick-play into the saved world, 3727 recipes baked in 715 ms, index/search/recipe screen rendered, clean disconnect. Re-verified on the merged branch (25295fa8): exactly one reload per join via TagsUpdatedEvent.ClientPacketReceived + RecipesReceivedEvent, 3727 recipes, tag icons render.
+- [x] C3. No leftover conflict markers, no `TODO(port)` or stubbed functionality introduced by this branch (grep clean; only upstream's six pre-existing TODOs remain; the batched renderer is an explicit, documented no-op, see D7).
+- [x] C4. Fabric client launches (runClient), reaches a world, EMI index/UI renders in the inventory (screenshot), log free of mixin apply failures / EMI errors. Verified 2026-09-22: quick-play into saved world, 3731 recipes baked in 495 ms, index/favorites/search/recipe screen/crafting recipe all rendered, clean disconnect. Re-verified on the merged branch (25295fa8) and again on the final branch (9af70c69): exactly one reload per join (tags then recipes), tag icons render (coals half-and-half icon confirmed at 10x zoom; logs tag renders the inherited oak log item), recipe tree screen opens, and the recipe screenshot button produces a real transparent PNG (`screenshots/emi/recipes/minecraft/crafting_table.png`).
+- [x] C5. NeoForge client launches likewise (screenshot, clean log). Verified 2026-09-22 after the D8 dev-classpath fix: quick-play into the saved world, 3727 recipes baked in 715 ms, index/search/recipe screen rendered, clean disconnect. Re-verified on the merged branch (25295fa8) and the final branch (9af70c69): exactly one reload per join via TagsUpdatedEvent.ClientPacketReceived + RecipesReceivedEvent, 3727 recipes, tag icons render, no errors.
 - [x] C6. Fabric dedicated server (runServer) loads EMI (43 mods) with no errors and stops at the EULA gate (EULA deliberately not accepted on the user's behalf; bounded check).
 - [x] C7. NeoForge dedicated server (runServer) loads EMI and reaches `Done (1.539s)!` (the NeoForge dev launcher does not gate on the EULA); no EMI warnings/errors; killed after the 60 s idle pause.
 
@@ -44,7 +44,7 @@ Merge the MIT-licensed community port `link-fgfgui/emi@26.1` (remote `linkfgfgui
 ### E. Delivery
 - [x] E1. Commits on `26.1` with attribution preserved (fork commits kept via a real merge).
 - [x] E2. `CHANGELOG.md` entry for the port.
-- [ ] E3. Push + PR (only to a remote the user owns; never to `emilyploszaj/emi` upstream, see D-PR).
+- [ ] E3. Push + PR: BLOCKED, needs the user. `origin` is the upstream maintainer's repo (no push rights, and D-PR forbids it) and the GitHub account `Pandaismyname1` has no fork of `emi`, so there is no remote the user owns. The branch is local only.
 - [ ] E4. Morning report.
 
 ### F. Regression fix round (from the fork-port audit, see decisions D7+)
