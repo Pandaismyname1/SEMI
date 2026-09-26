@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+  <groupId>dev.emi</groupId>
+  <artifactId>semi-fabric</artifactId>
+  <versioning>
+    <latest>1.1.24-SNAPSHOT+26.3</latest>
+    <release>1.1.24-SNAPSHOT+26.3</release>
+    <versions>
+      <version>1.1.24-SNAPSHOT+26.3</version>
+    </versions>
+    <lastUpdated>20260926141904</lastUpdated>
+  </versioning>
+</metadata>
