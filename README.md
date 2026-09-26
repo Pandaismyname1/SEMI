@@ -34,31 +34,37 @@ Minecraft 26.1, 26.2 and 26.3 require Java 25. Fabric builds need Fabric API; Ne
 
 ## Developers
 
-SEMI keeps EMI's API. To depend on it, use the Modrinth Maven (available once versions are published) and the `emi_version` you need, for example `1.1.24+26.3`:
+SEMI keeps EMI's API. Maven artifacts (`dev.emi:semi-fabric`, `dev.emi:semi-neoforge` and `dev.emi:semi-xplat-mojmap`, each with `-api` and `-sources` classifiers) are published to the `maven` branch of this repository and updated on every release. Use the `emi_version` you need, for example `1.1.24+26.3`:
 
 ```gradle
 repositories {
 	exclusiveContent {
 		forRepository {
 			maven {
-				name = "Modrinth"
-				url = "https://api.modrinth.com/maven"
+				name = "SEMI maven"
+				url = "https://raw.githubusercontent.com/Pandaismyname1/SEMI/maven"
 			}
 		}
 		filter {
-			includeGroup "maven.modrinth"
+			includeGroup "dev.emi"
 		}
 	}
 }
 
 dependencies {
 	// Fabric (26.1+: Minecraft is unobfuscated, so no mod* remapping configurations)
-	compileOnly "maven.modrinth:semi:${emi_version}-fabric"
-	localRuntime "maven.modrinth:semi:${emi_version}-fabric"
+	compileOnly "dev.emi:semi-fabric:${emi_version}"
+	localRuntime "dev.emi:semi-fabric:${emi_version}"
 
 	// NeoForge
-	compileOnly "maven.modrinth:semi:${emi_version}-neoforge"
-	runtimeOnly "maven.modrinth:semi:${emi_version}-neoforge"
+	compileOnly "dev.emi:semi-neoforge:${emi_version}"
+	runtimeOnly "dev.emi:semi-neoforge:${emi_version}"
+
+	// MultiLoader Template/VanillaGradle (mojmap)
+	compileOnly "dev.emi:semi-xplat-mojmap:${emi_version}"
+
+	// API-only (no implementation classes)
+	compileOnly "dev.emi:semi-fabric:${emi_version}:api"
 }
 ```
 

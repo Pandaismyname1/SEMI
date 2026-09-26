@@ -142,11 +142,14 @@ publishing {
 
 void setupRepositories(RepositoryHandler repositories) {
 	if (project.hasProperty("mavenUrl")) {
+		boolean isFile = project.mavenUrl.toString().startsWith("file:")
 		repositories.maven {
 			url project.mavenUrl
-			credentials {
-				username project.mavenUsername
-				password project.mavenPassword
+			if (!isFile) {
+				credentials {
+					username project.findProperty("mavenUsername") ?: "ci"
+					password project.findProperty("mavenPassword") ?: "ci"
+				}
 			}
 		}
 	}

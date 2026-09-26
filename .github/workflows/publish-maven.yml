@@ -1,0 +1,53 @@
+name: Publish Maven
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: 25
+          distribution: 'temurin'
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/loom-cache
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle
+
+      - name: Publish to local maven folder
+        env:
+          RELEASE: true
+        run: ./gradlew :fabric:publish :neoforge:publish :xplat:publish -PmavenUrl=file://$PWD/build/maven
+
+      - name: Collect maven output
+        run: |
+          rm -rf maven-out
+          mv build/maven maven-out
+          cd maven-out
+          git init -q -b maven
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "Maven artifacts for ${GITHUB_SHA::7}"
+
+      - name: Push maven branch (force)
+        run: |
+          cd maven-out
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git push -qf origin maven
